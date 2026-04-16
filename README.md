@@ -17,14 +17,14 @@ Opus est une application web pour suivre tous les films, séries, animés, livre
 
 ## Stack technique
 
-| Couche        | Technologie                          |
-|---------------|--------------------------------------|
-| Frontend      | React 18 + Tailwind CSS (via CDN)    |
-| Recherche     | OMDb · TVmaze · AniList · Open Library · RAWG |
-| Backend       | Node.js + Express                    |
-| Base de données | PostgreSQL                         |
-| Proxy         | Nginx                                |
-| Process manager | PM2                               |
+| Couche          | Technologie                                         |
+|-----------------|-----------------------------------------------------|
+| Frontend        | React 18 + Tailwind CSS (via CDN)                   |
+| Recherche       | OMDb · TVmaze · AniList · Open Library · RAWG       |
+| Backend         | Node.js + Express                                   |
+| Base de données | PostgreSQL                                          |
+| Proxy           | Nginx                                               |
+| Process manager | PM2                                                 |
 
 ---
 
@@ -38,7 +38,7 @@ opus/
 │   ├── package.json
 │   └── .env.example    ← Variables d'environnement (à copier en .env)
 ├── nginx/
-│   └── opus.conf       ← Configuration Nginx
+│   └── opus.conf       ← Configuration Nginx (exemple)
 └── README.md
 ```
 
@@ -46,13 +46,13 @@ opus/
 
 ## APIs utilisées
 
-| Catégorie  | API            | Inscription requise | Lien                        |
-|------------|----------------|---------------------|-----------------------------|
-| Films      | OMDb           | Oui (email seul)    | https://omdbapi.com         |
-| Séries     | TVmaze         | Non                 | https://tvmaze.com/api      |
-| Animés     | AniList        | Non                 | https://anilist.gitbook.io  |
-| Livres     | Open Library   | Non                 | https://openlibrary.org/dev |
-| Jeux vidéo | RAWG           | Oui (email seul)    | https://rawg.io/apidocs     |
+| Catégorie  | API           | Inscription requise | Lien                        |
+|------------|---------------|---------------------|-----------------------------|
+| Films      | OMDb          | Oui (email seul)    | https://omdbapi.com         |
+| Séries     | TVmaze        | Non                 | https://tvmaze.com/api      |
+| Animés     | AniList       | Non                 | https://anilist.gitbook.io  |
+| Livres     | Open Library  | Non                 | https://openlibrary.org/dev |
+| Jeux vidéo | RAWG          | Oui (email seul)    | https://rawg.io/apidocs     |
 
 ---
 
@@ -69,20 +69,25 @@ TVmaze, AniList et Open Library ne nécessitent aucune clé.
 
 ---
 
-## Mode 1 — Fichier HTML seul (local)
+## Mode 1 — Fichier HTML seul (local, sans serveur)
 
-Ouvre simplement `index.html` dans ton navigateur.  
+Ouvre simplement `index.html` dans ton navigateur.
 Les données sont stockées dans le `localStorage` du navigateur.
 
 > ⚠️ Les données sont perdues si tu vides le cache du navigateur.
 
 ---
 
-## Mode 2 — Hébergement sur VM / NAS (persistant)
+## Mode 2 — Hébergement local sur VM ou NAS (persistant)
+
+> ℹ️ **Cette section est un exemple d'hébergement en self-hosting local.**
+> Elle décrit comment déployer Opus sur une machine dédiée sur ton réseau local
+> (PC recyclé, Raspberry Pi, mini PC, NAS avec Docker, etc.).
+> L'application reste accessible uniquement depuis ton réseau — aucun accès externe requis.
 
 ### Prérequis
 
-- Ubuntu 22.04 ou 24.04
+- Ubuntu 22.04 ou 24.04 (ou équivalent)
 - Node.js 20 LTS
 - PostgreSQL 14+
 - Nginx
@@ -91,18 +96,10 @@ Les données sont stockées dans le `localStorage` du navigateur.
 ### Étape 1 — Installer les dépendances système
 
 ```bash
-# Node.js 20
+sudo apt update && sudo apt upgrade -y
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# PostgreSQL
-sudo apt install -y postgresql postgresql-contrib
-sudo systemctl enable postgresql && sudo systemctl start postgresql
-
-# Nginx
-sudo apt install -y nginx
-
-# PM2
+sudo apt install -y nodejs postgresql postgresql-contrib nginx git
+sudo systemctl enable postgresql nginx
 sudo npm install -g pm2
 ```
 
@@ -121,12 +118,13 @@ SQL
 ### Étape 3 — Configurer l'API
 
 ```bash
-mkdir -p /opt/opus-api
+sudo mkdir -p /opt/opus-api
+sudo chown -R $USER:$USER /opt/opus-api
 cp server/* /opt/opus-api/
 cd /opt/opus-api
 npm install
 cp .env.example .env
-nano .env   # remplis DATABASE_URL et CORS_ORIGIN
+nano .env   # remplis DATABASE_URL et CORS_ORIGIN avec l'IP de ta machine
 ```
 
 ### Étape 4 — Lancer l'API avec PM2
@@ -134,7 +132,7 @@ nano .env   # remplis DATABASE_URL et CORS_ORIGIN
 ```bash
 cd /opt/opus-api
 pm2 start index.js --name opus-api
-pm2 startup
+sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
 pm2 save
 ```
 
@@ -151,66 +149,63 @@ const API = null;
 ```
 par :
 ```js
-const API = 'http://TON_IP_OU_DOMAINE/api';
+const API = 'http://IP_DE_TA_MACHINE/api';
 ```
 
 ### Étape 6 — Configurer Nginx
 
 ```bash
 sudo cp nginx/opus.conf /etc/nginx/sites-available/opus
-sudo nano /etc/nginx/sites-available/opus   # remplace TON_IP_OU_DOMAINE
 sudo ln -s /etc/nginx/sites-available/opus /etc/nginx/sites-enabled/
+sudo rm /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### Étape 7 — (Optionnel) HTTPS avec Let's Encrypt
+### Accès
 
-```bash
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d ton-domaine.com
+Une fois déployé, Opus est accessible depuis n'importe quel appareil sur ton réseau local :
+```
+http://IP_DE_TA_MACHINE
 ```
 
 ---
 
 ## Variables d'environnement (.env)
 
-| Variable       | Description                    | Exemple                                  |
-|----------------|--------------------------------|------------------------------------------|
-| `PORT`         | Port de l'API                  | `3001`                                   |
-| `DATABASE_URL` | URL de connexion PostgreSQL    | `postgresql://opus:mdp@localhost:5432/opus` |
-| `CORS_ORIGIN`  | Origine autorisée pour le CORS | `http://192.168.1.10`                    |
+| Variable       | Description                     | Exemple                                     |
+|----------------|---------------------------------|---------------------------------------------|
+| `PORT`         | Port de l'API                   | `3001`                                      |
+| `DATABASE_URL` | URL de connexion PostgreSQL     | `postgresql://opus:mdp@localhost:5432/opus` |
+| `CORS_ORIGIN`  | Origine autorisée pour le CORS  | `http://192.168.1.XX`                       |
 
 ---
 
 ## Endpoints API
 
-| Méthode | Route            | Description      |
-|---------|------------------|------------------|
-| GET     | `/api/items`     | Tous les items   |
-| GET     | `/api/items/:id` | Un item          |
-| POST    | `/api/items`     | Créer un item    |
-| PUT     | `/api/items/:id` | Modifier un item |
-| DELETE  | `/api/items/:id` | Supprimer un item|
-| GET     | `/api/health`    | Statut de l'API  |
+| Méthode | Route             | Description       |
+|---------|-------------------|-------------------|
+| GET     | `/api/items`      | Tous les items    |
+| GET     | `/api/items/:id`  | Un item           |
+| POST    | `/api/items`      | Créer un item     |
+| PUT     | `/api/items/:id`  | Modifier un item  |
+| DELETE  | `/api/items/:id`  | Supprimer un item |
+| GET     | `/api/health`     | Statut de l'API   |
 
 ---
 
 ## Architecture
 
 ```
-Navigateur
+Navigateur (réseau local)
     │
     ▼
-Nginx :80 / :443
+Nginx :80
     ├── /        → /var/www/opus/index.html   (frontend)
     └── /api/*   → localhost:3001             (API Node.js)
                           │
                     PostgreSQL :5432
                       table: items
-                  (id, cat, title, creator,
-                   year, cover, genre, status,
-                   rating, note, added)
 ```
 
 ---
