@@ -5,898 +5,718 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Opus</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = {
-  theme: {
-    extend: {
-      fontFamily: {
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
-        body: ['Outfit', 'sans-serif'],
-      }
-    }
-  }
-}
-</script>
+<script>tailwind.config={theme:{extend:{fontFamily:{display:['"Playfair Display"','Georgia','serif'],body:['Outfit','sans-serif']}}}}</script>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Outfit', sans-serif; background: #F7F4EF; color: #1A1814; min-height: 100vh; }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
-  .card-lift { transition: transform 0.25s ease, box-shadow 0.25s ease; }
-  .card-lift:hover { transform: translateY(-5px); box-shadow: 0 24px 48px rgba(0,0,0,0.13); }
-
-  .cover-gradient { background: linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.25) 55%, transparent 100%); }
-
-  .modal-in { animation: modalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
-  @keyframes modalIn {
-    from { opacity: 0; transform: scale(0.96) translateY(10px); }
-    to   { opacity: 1; transform: none; }
+  :root {
+    --bg:#F7F4EF; --surface:#ffffff; --surface2:#F7F4EF; --hover:#EDE9E3;
+    --border:#E8E3DC; --border2:#D1C9BE;
+    --t1:#1A1814; --t2:#6B6560; --t3:#9CA3AF;
+    --shimmer1:#EDE9E3; --shimmer2:#E2DDD6;
+  }
+  body.dark {
+    --bg:#111009; --surface:#1C1A17; --surface2:#222019; --hover:#2A2824;
+    --border:#2E2B27; --border2:#3D3A35;
+    --t1:#F0EDE8; --t2:#A09890; --t3:#6B6560;
+    --shimmer1:#252220; --shimmer2:#1E1C19;
   }
 
-  .backdrop-in { animation: fadeIn 0.18s ease; }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  body { font-family:'Outfit',sans-serif; background:var(--bg); color:var(--t1); min-height:100vh; transition:background 0.2s, color 0.2s; }
 
-  .toast-in { animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-  @keyframes toastIn {
-    from { opacity: 0; transform: translateY(14px) scale(0.96); }
-    to   { opacity: 1; transform: none; }
-  }
-
-  .star-btn { cursor: pointer; transition: transform 0.1s, color 0.1s; line-height: 1; }
-  .star-btn:hover { transform: scale(1.25); }
-
-  .result-row { transition: background 0.12s, border-color 0.12s; }
-  .result-row:hover { background: #EFF6FF; border-color: #93C5FD; }
-
-  .seg-btn { transition: all 0.15s; }
-
-  ::-webkit-scrollbar { width: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #D1C9BE; border-radius: 3px; }
-
-  .shimmer {
-    background: linear-gradient(90deg, #EDE9E3 25%, #E2DDD6 50%, #EDE9E3 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.4s infinite;
-  }
-  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-
-  input, select, textarea { font-family: 'Outfit', sans-serif; }
-  input:focus, select:focus, textarea:focus { outline: none; }
-
-  .action-btn { opacity: 0; transition: opacity 0.15s; }
-  .card-root:hover .action-btn { opacity: 1; }
+  .card-lift { transition:transform 0.25s ease,box-shadow 0.25s ease; }
+  .card-lift:hover { transform:translateY(-5px); box-shadow:0 24px 48px rgba(0,0,0,0.18); }
+  .cover-gradient { background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.25) 55%,transparent 100%); }
+  .modal-in { animation:modalIn 0.22s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes modalIn { from{opacity:0;transform:scale(0.96) translateY(10px)} to{opacity:1;transform:none} }
+  .backdrop-in { animation:fadeIn 0.18s ease; }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .toast-in { animation:toastIn 0.3s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes toastIn { from{opacity:0;transform:translateY(14px) scale(0.96)} to{opacity:1;transform:none} }
+  .star-btn { cursor:pointer; transition:transform 0.1s,color 0.1s; line-height:1; }
+  .star-btn:hover { transform:scale(1.25); }
+  .seg-btn { transition:all 0.15s; }
+  ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+  .shimmer { background:linear-gradient(90deg,var(--shimmer1) 25%,var(--shimmer2) 50%,var(--shimmer1) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+  @keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
+  input,select,textarea { font-family:'Outfit',sans-serif; }
+  input:focus,select:focus,textarea:focus { outline:none; }
+  .action-btn { opacity:0; transition:opacity 0.15s; }
+  .card-root:hover .action-btn { opacity:1; }
+  .dm-toggle { cursor:pointer; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; transition:all 0.15s; border:1.5px solid var(--border); background:var(--surface2); color:var(--t2); }
+  .dm-toggle:hover { background:var(--hover); color:var(--t1); }
 </style>
 </head>
 <body>
 <div id="root"></div>
-
 <script type="text/babel">
-const { useState, useEffect, useCallback, useMemo, useRef } = React;
+const { useState, useEffect, useCallback, useMemo, useRef, createContext, useContext } = React;
 
-/* ─── CONFIG ──────────────────────────────────────────────────── */
-const API       = null;                             // null = localStorage | 'http://IP/api' = backend
-const OMDB_KEY  = 'VOTRE_CLE_OMDB';
-const RAWG_KEY  = 'VOTRE_CLE_RAWG';
+/* ─── CONFIG ── */
+const API      = null;
+const OMDB_KEY = 'VOTRE_CLE_OMDB';
+const RAWG_KEY = 'VOTRE_CLE_RAWG';
 
-/* ─── CONSTANTS ───────────────────────────────────────────────── */
+/* ─── THEME CONTEXT ── */
+const DarkCtx = createContext(false);
+const useDark = () => useContext(DarkCtx);
+
+/* helper — retourne les couleurs de surface selon le thème */
+function useT() {
+  const dm = useDark();
+  return {
+    bg:       dm ? '#111009' : '#F7F4EF',
+    surface:  dm ? '#1C1A17' : '#ffffff',
+    surface2: dm ? '#222019' : '#F7F4EF',
+    hover:    dm ? '#2A2824' : '#EDE9E3',
+    border:   dm ? '#2E2B27' : '#E8E3DC',
+    border2:  dm ? '#3D3A35' : '#D1C9BE',
+    t1:       dm ? '#F0EDE8' : '#1A1814',
+    t2:       dm ? '#A09890' : '#6B6560',
+    t3:       dm ? '#6B6560' : '#9CA3AF',
+  };
+}
+
+/* ─── CONSTANTS ── */
 const CATS = {
-  movie:  { label: 'Films',   icon: '🎬', color: '#DC2626', light: '#FEF2F2', border: '#FECACA', creator: 'Réalisateur' },
-  series: { label: 'Séries',  icon: '📺', color: '#16A34A', light: '#F0FDF4', border: '#BBF7D0', creator: 'Créateur'    },
-  anime:  { label: 'Animés',  icon: '⛩️', color: '#D97706', light: '#FFFBEB', border: '#FDE68A', creator: 'Studio'      },
-  book:   { label: 'Livres',  icon: '📚', color: '#7C3AED', light: '#F5F3FF', border: '#DDD6FE', creator: 'Auteur'      },
-  game:   { label: 'Jeux',    icon: '🎮', color: '#2563EB', light: '#EFF6FF', border: '#BFDBFE', creator: 'Studio'      },
+  movie:  { label:'Films',  icon:'🎬', color:'#DC2626', light:'#FEF2F2', lightDark:'#2A1212', creator:'Réalisateur' },
+  series: { label:'Séries', icon:'📺', color:'#16A34A', light:'#F0FDF4', lightDark:'#0E2318', creator:'Créateur'    },
+  anime:  { label:'Animés', icon:'⛩️', color:'#D97706', light:'#FFFBEB', lightDark:'#2A1F07', creator:'Studio'      },
+  book:   { label:'Livres', icon:'📚', color:'#7C3AED', light:'#F5F3FF', lightDark:'#1D1230', creator:'Auteur'      },
+  game:   { label:'Jeux',   icon:'🎮', color:'#2563EB', light:'#EFF6FF', lightDark:'#0D1A33', creator:'Studio'      },
 };
-
 const STATUSES = {
-  todo:    { label: 'À faire',   color: '#9CA3AF', bg: '#F9FAFB' },
-  doing:   { label: 'En cours',  color: '#D97706', bg: '#FFFBEB' },
-  done:    { label: 'Terminé',   color: '#16A34A', bg: '#F0FDF4' },
-  dropped: { label: 'Abandonné', color: '#DC2626', bg: '#FEF2F2' },
+  todo:    { label:'À faire',   color:'#9CA3AF', bg:'#F9FAFB', bgDark:'#1A1A1A' },
+  doing:   { label:'En cours',  color:'#D97706', bg:'#FFFBEB', bgDark:'#1F1507' },
+  done:    { label:'Terminé',   color:'#16A34A', bg:'#F0FDF4', bgDark:'#0A1F10' },
+  dropped: { label:'Abandonné', color:'#DC2626', bg:'#FEF2F2', bgDark:'#1F0A0A' },
 };
-
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 
-/* ─── API SEARCH ──────────────────────────────────────────────── */
-async function searchMovies(q) {
+/* ─── API SEARCH ── */
+async function searchMovies(q, limit=5) {
   try {
     const r = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&s=${encodeURIComponent(q)}&type=movie`);
     const d = await r.json();
     if (!d.Search) return [];
-    return Promise.all(d.Search.slice(0, 5).map(async item => {
+    return Promise.all(d.Search.slice(0, limit).map(async item => {
       try {
         const r2 = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${item.imdbID}`);
         const dd = await r2.json();
-        return {
-          title:       dd.Title,
-          creator:     dd.Director !== 'N/A' ? dd.Director : null,
-          year:        dd.Year?.slice(0, 4) || null,
-          cover:       dd.Poster !== 'N/A' ? dd.Poster : null,
-          genre:       dd.Genre  !== 'N/A' ? dd.Genre?.split(',')[0].trim() : null,
-          description: dd.Plot   !== 'N/A' ? dd.Plot : null,
-        };
-      } catch { return { title: item.Title, year: item.Year?.slice(0,4), cover: item.Poster !== 'N/A' ? item.Poster : null, creator: null, genre: null, description: null }; }
+        return { title:dd.Title, creator:dd.Director!=='N/A'?dd.Director:null, year:dd.Year?.slice(0,4)||null, cover:dd.Poster!=='N/A'?dd.Poster:null, genre:dd.Genre!=='N/A'?dd.Genre?.split(',')[0].trim():null, description:dd.Plot!=='N/A'?dd.Plot:null };
+      } catch { return { title:item.Title, year:item.Year?.slice(0,4), cover:item.Poster!=='N/A'?item.Poster:null, creator:null, genre:null, description:null }; }
     }));
   } catch { return []; }
 }
-
-async function searchSeries(q) {
+async function searchSeries(q, limit=5) {
   try {
     const r = await fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(q)}`);
     const d = await r.json();
-    return d.slice(0, 5).map(({ show: s }) => ({
-      title:       s.name,
-      creator:     null,
-      year:        s.premiered?.slice(0, 4) || null,
-      cover:       s.image?.original || s.image?.medium || null,
-      genre:       s.genres?.[0] || null,
-      description: s.summary?.replace(/<[^>]*>/g, '').slice(0, 200) || null,
-    }));
+    return d.slice(0, limit).map(({ show:s }) => ({ title:s.name, creator:null, year:s.premiered?.slice(0,4)||null, cover:s.image?.original||s.image?.medium||null, genre:s.genres?.[0]||null, description:s.summary?.replace(/<[^>]*>/g,'').slice(0,200)||null }));
   } catch { return []; }
 }
-
-async function searchAnime(q) {
+async function searchAnime(q, limit=5) {
   try {
-    const r = await fetch('https://graphql.anilist.co', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: `query($s:String){Page(perPage:5){media(search:$s,type:ANIME,sort:POPULARITY_DESC){title{romaji english}startDate{year}genres coverImage{extraLarge large}description(asHtml:false)}}}`,
-        variables: { s: q },
-      }),
+    const r = await fetch('https://graphql.anilist.co', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ query:`query($s:String,$n:Int){Page(perPage:$n){media(search:$s,type:ANIME,sort:POPULARITY_DESC){title{romaji english}startDate{year}genres coverImage{extraLarge large}description(asHtml:false)}}}`, variables:{s:q,n:limit} }) });
+    const d = await r.json();
+    return (d.data?.Page?.media||[]).map(m => ({ title:m.title.english||m.title.romaji, creator:null, year:m.startDate?.year?.toString()||null, cover:m.coverImage?.extraLarge||m.coverImage?.large||null, genre:m.genres?.[0]||null, description:m.description?.replace(/<[^>]*>/g,'').slice(0,200)||null }));
+  } catch { return []; }
+}
+async function searchBooks(q, limit=5) {
+  try {
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=${limit}&orderBy=relevance&langRestrict=fr`);
+    const d = await r.json();
+    if (!d.items) return [];
+    return d.items.map(b => {
+      const info = b.volumeInfo||{};
+      const cover = info.imageLinks?.extraLarge||info.imageLinks?.large||info.imageLinks?.thumbnail||null;
+      return { title:info.title||null, creator:info.authors?.[0]||null, year:info.publishedDate?.slice(0,4)||null, cover:cover?cover.replace('http://','https://').replace('&zoom=1','&zoom=3'):null, genre:info.categories?.[0]?.split('/')[0].trim()||null, description:info.description?.slice(0,200)||null };
     });
-    const d = await r.json();
-    return (d.data?.Page?.media || []).map(m => ({
-      title:       m.title.english || m.title.romaji,
-      creator:     null,
-      year:        m.startDate?.year?.toString() || null,
-      cover:       m.coverImage?.extraLarge || m.coverImage?.large || null,
-      genre:       m.genres?.[0] || null,
-      description: m.description?.replace(/<[^>]*>/g, '').slice(0, 200) || null,
-    }));
   } catch { return []; }
 }
-
-async function searchBooks(q) {
+async function searchGames(q, limit=5) {
   try {
-    const r = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=5&fields=title,author_name,first_publish_year,subject,cover_i`);
+    const r = await fetch(`https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(q)}&page_size=${limit}`);
     const d = await r.json();
-    return (d.docs || []).slice(0, 5).map(b => ({
-      title:       b.title,
-      creator:     b.author_name?.[0] || null,
-      year:        b.first_publish_year?.toString() || null,
-      cover:       b.cover_i ? `https://covers.openlibrary.org/b/id/${b.cover_i}-L.jpg` : null,
-      genre:       b.subject?.[0] || null,
-      description: null,
-    }));
+    return (d.results||[]).map(g => ({ title:g.name, creator:null, year:g.released?.slice(0,4)||null, cover:g.background_image||null, genre:g.genres?.[0]?.name||null, description:null }));
   } catch { return []; }
 }
+const SEARCH_FNS = { movie:searchMovies, series:searchSeries, anime:searchAnime, book:searchBooks, game:searchGames };
 
-async function searchGames(q) {
-  try {
-    const r = await fetch(`https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(q)}&page_size=5`);
-    const d = await r.json();
-    return (d.results || []).map(g => ({
-      title:       g.name,
-      creator:     null,
-      year:        g.released?.slice(0, 4) || null,
-      cover:       g.background_image || null,
-      genre:       g.genres?.[0]?.name || null,
-      description: null,
-    }));
-  } catch { return []; }
-}
-
-const SEARCH_FNS = { movie: searchMovies, series: searchSeries, anime: searchAnime, book: searchBooks, game: searchGames };
-
-/* ─── STORAGE ─────────────────────────────────────────────────── */
+/* ─── STORAGE ── */
 async function loadItems() {
-  if (API) { try { const r = await fetch(`${API}/items`); return r.json(); } catch { return []; } }
-  try { return JSON.parse(localStorage.getItem('opus-v2') || '[]'); } catch { return []; }
+  if (API) { try { const r=await fetch(`${API}/items`); return r.json(); } catch { return []; } }
+  try { return JSON.parse(localStorage.getItem('opus-v2')||'[]'); } catch { return []; }
 }
-function persist(items) { localStorage.setItem('opus-v2', JSON.stringify(items)); }
-
+function persist(items) { localStorage.setItem('opus-v2',JSON.stringify(items)); }
 async function saveNew(item) {
-  if (API) { await fetch(`${API}/items`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) }); return; }
-  const all = await loadItems(); all.unshift(item); persist(all);
+  if (API) { await fetch(`${API}/items`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)}); return; }
+  const all=await loadItems(); all.unshift(item); persist(all);
 }
 async function updateItem(item) {
-  if (API) { await fetch(`${API}/items/${item.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) }); return; }
-  const all = await loadItems(); const idx = all.findIndex(i => i.id === item.id); if (idx >= 0) all[idx] = item; persist(all);
+  if (API) { await fetch(`${API}/items/${item.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)}); return; }
+  const all=await loadItems(); const idx=all.findIndex(i=>i.id===item.id); if(idx>=0) all[idx]=item; persist(all);
 }
 async function deleteItem(id) {
-  if (API) { await fetch(`${API}/items/${id}`, { method: 'DELETE' }); return; }
-  const all = await loadItems(); persist(all.filter(i => i.id !== id));
+  if (API) { await fetch(`${API}/items/${id}`,{method:'DELETE'}); return; }
+  const all=await loadItems(); persist(all.filter(i=>i.id!==id));
 }
 
-/* ─── STAR RATING ─────────────────────────────────────────────── */
-function StarRating({ value = 0, onChange, size = 'md' }) {
+/* ─── STAR RATING ── */
+function StarRating({ value=0, onChange, size='md' }) {
   const [hover, setHover] = useState(0);
-  const sz = size === 'lg' ? '1.8rem' : '1.2rem';
+  const sz = size==='lg' ? '1.8rem' : '1.2rem';
   return (
-    <div style={{ display: 'flex', gap: '2px' }}>
+    <div style={{display:'flex',gap:'2px'}}>
       {[1,2,3,4,5].map(n => (
-        <span
-          key={n}
-          className="star-btn select-none"
-          style={{ fontSize: sz, color: n <= (hover || value) ? '#F59E0B' : '#D1C9BE' }}
-          onClick={() => onChange && onChange(n === value ? 0 : n)}
+        <span key={n} className="star-btn select-none"
+          style={{fontSize:sz, color: n<=(hover||value) ? '#F59E0B' : 'var(--border2)'}}
+          onClick={() => onChange && onChange(n===value?0:n)}
           onMouseEnter={() => onChange && setHover(n)}
-          onMouseLeave={() => onChange && setHover(0)}
-        >★</span>
+          onMouseLeave={() => onChange && setHover(0)}>★</span>
       ))}
     </div>
   );
 }
 
-/* ─── TOAST ───────────────────────────────────────────────────── */
+/* ─── TOAST ── */
 function Toast({ msg, visible }) {
   if (!visible) return null;
-  return (
-    <div className="toast-in fixed bottom-6 right-6 z-50 bg-[#1A1814] text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-2xl pointer-events-none">
-      {msg}
-    </div>
-  );
+  return <div className="toast-in fixed bottom-6 right-6 z-50 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-2xl pointer-events-none" style={{background:'var(--t1)'}}>{msg}</div>;
 }
 
-/* ─── CARD ────────────────────────────────────────────────────── */
+/* ─── CARD ── */
 function Card({ item, onOpen, onEdit, onDelete }) {
-  const cat = CATS[item.cat] || CATS.movie;
-  const st  = STATUSES[item.status] || STATUSES.todo;
+  const dm  = useDark();
+  const cat = CATS[item.cat]||CATS.movie;
+  const st  = STATUSES[item.status]||STATUSES.todo;
+  const catLight = dm ? cat.lightDark : cat.light;
+  const stBg     = dm ? st.bgDark    : st.bg;
   return (
-    <div
-      className="card-root card-lift bg-white rounded-2xl overflow-hidden cursor-pointer border border-[#E8E3DC] relative"
-      onClick={() => onOpen(item.id)}
-    >
-      {/* Cover */}
-      <div className="relative overflow-hidden bg-[#F0EDE8]" style={{ aspectRatio: '2/3' }}>
-        {item.cover
-          ? <img src={item.cover} alt={item.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              onError={e => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex'; }}
-            />
-          : null}
-        <div className="w-full h-full items-center justify-center text-5xl absolute inset-0"
-          style={{ background: cat.light, display: item.cover ? 'none' : 'flex' }}>
-          {cat.icon}
-        </div>
+    <div className="card-root card-lift rounded-2xl overflow-hidden cursor-pointer relative"
+      style={{background:'var(--surface)', border:'1px solid var(--border)'}}
+      onClick={() => onOpen(item.id)}>
+      <div className="relative overflow-hidden" style={{aspectRatio:'2/3', background:catLight}}>
+        {item.cover ? <img src={item.cover} alt={item.title} loading="lazy" className="w-full h-full object-cover" onError={e=>{e.currentTarget.style.display='none';e.currentTarget.nextSibling.style.display='flex';}} /> : null}
+        <div className="w-full h-full items-center justify-center text-5xl absolute inset-0" style={{background:catLight, display:item.cover?'none':'flex'}}>{cat.icon}</div>
         {item.cover && <div className="cover-gradient absolute inset-0 pointer-events-none" />}
-
-        {/* Status badge */}
         <div className="absolute top-2 left-2">
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-            style={{ background: st.bg, color: st.color, border: `1px solid ${st.color}40` }}>
-            {st.label}
-          </span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{background:stBg, color:st.color, border:`1px solid ${st.color}40`}}>{st.label}</span>
         </div>
-
-        {/* Actions */}
-        <div className="action-btn absolute top-2 right-2 flex gap-1" onClick={e => e.stopPropagation()}>
-          <button onClick={() => onEdit(item.id)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-xs text-gray-700 hover:text-gray-900 transition-colors"
-            style={{ background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)' }}>✎</button>
-          <button onClick={() => onDelete(item.id)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-xs text-gray-700 hover:text-red-500 transition-colors"
-            style={{ background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)' }}>✕</button>
+        <div className="action-btn absolute top-2 right-2 flex gap-1" onClick={e=>e.stopPropagation()}>
+          <button onClick={()=>onEdit(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-colors" style={{background:'rgba(255,255,255,0.9)',backdropFilter:'blur(4px)',color:'#374151'}}>✎</button>
+          <button onClick={()=>onDelete(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-colors" style={{background:'rgba(255,255,255,0.9)',backdropFilter:'blur(4px)',color:'#374151'}}>✕</button>
         </div>
-
-        {/* Category bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ background: cat.color }} />
+        <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{background:cat.color}} />
       </div>
-
-      {/* Body */}
       <div className="p-3">
-        <div className="text-[13px] font-semibold text-[#1A1814] truncate leading-snug mb-0.5" title={item.title}>
-          {item.title}
-        </div>
-        <div className="text-[11px] text-[#6B6560] truncate">
-          {[item.creator, item.year].filter(Boolean).join(' · ')}
-        </div>
-        {item.genre && (
-          <div className="mt-2">
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: cat.light, color: cat.color }}>
-              {item.genre}
-            </span>
-          </div>
-        )}
-        {item.status === 'done' && item.rating > 0 && (
-          <div className="mt-1.5 flex">
-            {[1,2,3,4,5].map(n => (
-              <span key={n} style={{ fontSize: '11px', color: n <= item.rating ? '#F59E0B' : '#E8E3DC' }}>★</span>
-            ))}
-          </div>
+        <div className="text-[13px] font-semibold truncate leading-snug mb-0.5" style={{color:'var(--t1)'}} title={item.title}>{item.title}</div>
+        <div className="text-[11px] truncate" style={{color:'var(--t3)'}}>{[item.creator,item.year].filter(Boolean).join(' · ')}</div>
+        {item.genre && <div className="mt-2"><span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{background:catLight, color:cat.color}}>{item.genre}</span></div>}
+        {item.status==='done' && item.rating>0 && (
+          <div className="mt-1.5 flex">{[1,2,3,4,5].map(n=><span key={n} style={{fontSize:'11px',color:n<=item.rating?'#F59E0B':'var(--border2)'}}>★</span>)}</div>
         )}
       </div>
     </div>
   );
 }
 
-/* ─── SEARCH MODAL ────────────────────────────────────────────── */
-function SearchModal({ open, initialCat, onClose, onAdd, onManual }) {
-  const [cat, setCat]       = useState(initialCat || 'movie');
-  const [query, setQuery]   = useState('');
-  const [results, setResults] = useState([]);
-  const [phase, setPhase]   = useState('idle'); // idle | loading | done | empty | error
+/* ─── SEARCH MODAL ── */
+function SearchModal({ open, initialCat, onClose, onAddMany, onManual }) {
+  const dm = useDark();
+  const T  = useT();
+  const [cat,      setCat]      = useState(initialCat||'movie');
+  const [query,    setQuery]    = useState('');
+  const [results,  setResults]  = useState([]);
+  const [phase,    setPhase]    = useState('idle');
+  const [limit,    setLimit]    = useState(5);
+  const [selected, setSelected] = useState(new Set());
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (open) { setCat(initialCat || 'movie'); setQuery(''); setResults([]); setPhase('idle'); setTimeout(() => inputRef.current?.focus(), 120); }
+    if (open) { setCat(initialCat||'movie'); setQuery(''); setResults([]); setPhase('idle'); setSelected(new Set()); setTimeout(()=>inputRef.current?.focus(),120); }
   }, [open, initialCat]);
 
   const doSearch = async () => {
     if (!query.trim()) return;
-    setPhase('loading'); setResults([]);
-    try {
-      const res = await SEARCH_FNS[cat](query.trim());
-      setResults(res); setPhase(res.length ? 'done' : 'empty');
-    } catch { setPhase('error'); }
+    setPhase('loading'); setResults([]); setSelected(new Set());
+    try { const res=await SEARCH_FNS[cat](query.trim(),limit); setResults(res); setPhase(res.length?'done':'empty'); }
+    catch { setPhase('error'); }
+  };
+
+  const toggleSelect = i => setSelected(prev => { const n=new Set(prev); n.has(i)?n.delete(i):n.add(i); return n; });
+  const handleAddSelected = () => {
+    onAddMany([...selected].map(i=>({...results[i],cat,id:uid(),status:'todo',rating:0,added:Date.now()})));
+    setSelected(new Set());
   };
 
   if (!open) return null;
   const catObj = CATS[cat];
+  const catLight = dm ? catObj.lightDark : catObj.light;
 
   return (
     <div className="backdrop-in fixed inset-0 z-40 flex items-center justify-center p-4"
-      style={{ background: 'rgba(26,24,20,0.55)', backdropFilter: 'blur(8px)' }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-in bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
-        {/* Header */}
+      style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)'}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-in rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col" style={{maxHeight:'90vh',background:T.surface,border:`1px solid ${T.border}`}}>
+
         <div className="p-6 pb-4">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="font-display text-xl font-bold text-[#1A1814]">Ajouter une œuvre</h2>
-            <button onClick={onClose} className="text-[#9CA3AF] hover:text-[#1A1814] transition-colors text-lg leading-none">✕</button>
+            <h2 className="font-display text-xl font-bold" style={{color:T.t1}}>Ajouter une œuvre</h2>
+            <button onClick={onClose} className="text-lg leading-none transition-colors" style={{color:T.t3}}>✕</button>
           </div>
-
-          {/* Category pills */}
           <div className="flex gap-1.5 flex-wrap mb-4">
-            {Object.entries(CATS).map(([k, v]) => (
-              <button key={k} onClick={() => { setCat(k); setResults([]); setPhase('idle'); }}
+            {Object.entries(CATS).map(([k,v]) => (
+              <button key={k} onClick={()=>{setCat(k);setResults([]);setPhase('idle');setSelected(new Set());}}
                 className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-                style={cat === k ? { background: v.color, color: 'white' } : { background: v.light, color: v.color }}>
+                style={cat===k?{background:v.color,color:'white'}:{background:dm?v.lightDark:v.light,color:v.color}}>
                 {v.icon} {v.label}
               </button>
             ))}
           </div>
-
-          {/* Search input */}
           <div className="flex gap-2">
-            <input ref={inputRef} value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && doSearch()}
-              placeholder={`Rechercher un ${catObj.label.slice(0,-1).toLowerCase()}…`}
-              className="flex-1 bg-[#F7F4EF] border border-[#E8E3DC] rounded-xl px-4 py-2.5 text-sm focus:border-[#93C5FD] transition-colors"
-            />
-            <button onClick={doSearch} disabled={phase === 'loading'}
+            <input ref={inputRef} value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doSearch()}
+              placeholder="Rechercher…"
+              className="flex-1 rounded-xl px-4 py-2.5 text-sm transition-colors"
+              style={{background:T.surface2,border:`1.5px solid ${T.border}`,color:T.t1}} />
+            <select value={limit} onChange={e=>setLimit(Number(e.target.value))}
+              className="rounded-xl px-3 py-2.5 text-sm cursor-pointer text-center appearance-none"
+              style={{background:T.surface2,border:`1.5px solid ${T.border}`,color:T.t1}}>
+              {[5,10,15,20].map(n=><option key={n} value={n}>{n}</option>)}
+            </select>
+            <button onClick={doSearch} disabled={phase==='loading'}
               className="px-4 py-2.5 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-50 active:scale-95"
-              style={{ background: catObj.color }}>
-              {phase === 'loading' ? '⟳' : 'Chercher'}
+              style={{background:catObj.color}}>
+              {phase==='loading'?'⟳':'Chercher'}
             </button>
           </div>
+          {phase==='done' && results.length>0 && (
+            <div className="flex items-center justify-between mt-3 pt-3" style={{borderTop:`1px solid ${T.border}`}}>
+              <button onClick={()=>setSelected(selected.size===results.length?new Set():new Set(results.map((_,i)=>i)))}
+                className="text-xs font-medium transition-colors" style={{color:T.t2}}>
+                {selected.size===results.length?'Tout désélectionner':'Tout sélectionner'}
+              </button>
+              <span className="text-xs" style={{color:T.t3}}>{results.length} résultat{results.length>1?'s':''} · coche pour sélectionner</span>
+            </div>
+          )}
         </div>
 
-        {/* Results */}
         <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-2">
-          {phase === 'loading' && [0,1,2].map(i => (
-            <div key={i} className="flex gap-3 p-3 rounded-xl border border-[#E8E3DC]">
+          {phase==='loading' && [0,1,2].map(i=>(
+            <div key={i} className="flex gap-3 p-3 rounded-xl" style={{border:`1px solid ${T.border}`}}>
               <div className="shimmer w-10 h-14 rounded-lg flex-shrink-0" />
-              <div className="flex-1 space-y-2 pt-1">
-                <div className="shimmer h-3 rounded-full w-3/4" />
-                <div className="shimmer h-3 rounded-full w-1/2" />
-              </div>
+              <div className="flex-1 space-y-2 pt-1"><div className="shimmer h-3 rounded-full w-3/4" /><div className="shimmer h-3 rounded-full w-1/2" /></div>
             </div>
           ))}
-          {phase === 'empty' && (
-            <div className="text-center py-10 text-[#9CA3AF] text-sm">Aucun résultat. Essaie un autre terme.</div>
-          )}
-          {phase === 'error' && (
-            <div className="text-center py-10 text-red-400 text-sm">Erreur réseau. Utilise la saisie manuelle.</div>
-          )}
-          {phase === 'idle' && (
-            <div className="text-center py-10 text-[#9CA3AF] text-sm">Tape un titre et lance la recherche.</div>
-          )}
-          {results.map((r, i) => (
-            <div key={i} className="result-row flex gap-3 p-3 rounded-xl border border-[#E8E3DC] cursor-pointer"
-              onClick={() => onAdd({ ...r, cat, id: uid(), status: 'todo', rating: 0, added: Date.now() })}>
-              <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center text-xl"
-                style={{ background: catObj.light }}>
-                {r.cover
-                  ? <img src={r.cover} alt="" className="w-full h-full object-cover"
-                      onError={e => { e.target.style.display='none'; }} />
-                  : catObj.icon}
+          {phase==='empty'  && <div className="text-center py-10 text-sm" style={{color:T.t3}}>Aucun résultat. Essaie un autre terme.</div>}
+          {phase==='error'  && <div className="text-center py-10 text-sm text-red-400">Erreur réseau. Utilise la saisie manuelle.</div>}
+          {phase==='idle'   && <div className="text-center py-10 text-sm" style={{color:T.t3}}>Tape un titre et lance la recherche.</div>}
+          {results.map((r,i) => {
+            const isSel = selected.has(i);
+            return (
+              <div key={i} className="flex gap-3 p-3 rounded-xl cursor-pointer transition-all"
+                style={isSel?{borderColor:catObj.color,background:catLight,border:`1.5px solid ${catObj.color}`}:{border:`1.5px solid ${T.border}`,background:'transparent'}}
+                onClick={()=>toggleSelect(i)}>
+                <div className="flex-shrink-0 self-center">
+                  <div className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
+                    style={isSel?{background:catObj.color,borderColor:catObj.color}:{borderColor:T.border2}}>
+                    {isSel && <span className="text-white text-[11px] font-bold leading-none">✓</span>}
+                  </div>
+                </div>
+                <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center text-xl" style={{background:catLight}}>
+                  {r.cover ? <img src={r.cover} alt="" className="w-full h-full object-cover" onError={e=>{e.target.style.display='none';}} /> : catObj.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-semibold leading-tight" style={{color:T.t1}}>{r.title}</div>
+                  <div className="text-xs mt-0.5" style={{color:T.t3}}>{[r.creator,r.year,r.genre].filter(Boolean).join(' · ')}</div>
+                  {r.description && <div className="text-xs mt-1 line-clamp-2 leading-relaxed" style={{color:T.t2}}>{r.description}</div>}
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold text-[#1A1814] leading-tight">{r.title}</div>
-                <div className="text-xs text-[#9CA3AF] mt-0.5">{[r.creator, r.year, r.genre].filter(Boolean).join(' · ')}</div>
-                {r.description && <div className="text-xs text-[#6B6560] mt-1 line-clamp-2 leading-relaxed">{r.description}</div>}
-              </div>
-              <button className="flex-shrink-0 self-start text-xs px-2.5 py-1 rounded-lg border font-bold transition-all hover:text-white"
-                style={{ color: catObj.color, borderColor: catObj.color + '60' }}
-                onMouseEnter={e => e.currentTarget.style.background = catObj.color + 'CC'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >＋</button>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-[#E8E3DC] flex items-center justify-between">
-          <button onClick={onClose} className="text-sm text-[#9CA3AF] hover:text-[#1A1814] transition-colors">Fermer</button>
-          <button onClick={() => onManual(cat)}
-            className="text-sm font-semibold px-4 py-2 rounded-xl bg-[#F7F4EF] hover:bg-[#EDE9E3] transition-colors text-[#1A1814]">
-            Saisie manuelle →
-          </button>
+        <div className="px-6 py-4 flex items-center justify-between gap-3" style={{borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} className="text-sm transition-colors flex-shrink-0" style={{color:T.t3}}>Fermer</button>
+          <div className="flex gap-2 flex-1 justify-end">
+            {selected.size>0 && (
+              <button onClick={handleAddSelected} className="text-sm font-semibold px-4 py-2 rounded-xl text-white transition-all active:scale-95 flex-shrink-0" style={{background:catObj.color}}>
+                Ajouter la sélection ({selected.size})
+              </button>
+            )}
+            <button onClick={()=>onManual(cat)} className="text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex-shrink-0" style={{background:T.surface2,color:T.t1}}>
+              Saisie manuelle →
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── ADD / EDIT MODAL ────────────────────────────────────────── */
+/* ─── ADD/EDIT MODAL ── */
 function AddEditModal({ open, item, defaultCat, onClose, onSave }) {
-  const blank = { cat: defaultCat || 'movie', title: '', creator: '', year: '', cover: '', genre: '', status: 'todo', rating: 0, note: '' };
+  const dm = useDark();
+  const T  = useT();
+  const blank = { cat:defaultCat||'movie', title:'', creator:'', year:'', cover:'', genre:'', status:'todo', rating:0, note:'' };
   const [form, setForm] = useState(blank);
 
   useEffect(() => {
     if (!open) return;
-    if (item) {
-      setForm({ cat: item.cat, title: item.title, creator: item.creator || '', year: item.year || '', cover: item.cover || '', genre: item.genre || '', status: item.status, rating: item.rating || 0, note: item.note || '' });
-    } else {
-      setForm({ ...blank, cat: defaultCat || 'movie' });
-    }
+    if (item) setForm({ cat:item.cat, title:item.title, creator:item.creator||'', year:item.year||'', cover:item.cover||'', genre:item.genre||'', status:item.status, rating:item.rating||0, note:item.note||'' });
+    else setForm({...blank, cat:defaultCat||'movie'});
   }, [open, item, defaultCat]);
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const handleSave = () => {
     if (!form.title.trim()) return;
-    onSave({
-      id:       item?.id || uid(),
-      cat:      form.cat,
-      title:    form.title.trim(),
-      creator:  form.creator.trim() || null,
-      year:     form.year.trim() || null,
-      cover:    form.cover.trim() || null,
-      genre:    form.genre.trim() || null,
-      status:   form.status,
-      rating:   form.status === 'done' ? (form.rating || 0) : 0,
-      note:     form.note.trim() || null,
-      added:    item?.added || Date.now(),
-    });
+    onSave({ id:item?.id||uid(), cat:form.cat, title:form.title.trim(), creator:form.creator.trim()||null, year:form.year.trim()||null, cover:form.cover.trim()||null, genre:form.genre.trim()||null, status:form.status, rating:form.status==='done'?(form.rating||0):0, note:form.note.trim()||null, added:item?.added||Date.now() });
   };
 
   if (!open) return null;
   const catObj = CATS[form.cat];
+  const inputStyle = { background:T.surface2, border:`1.5px solid ${T.border}`, color:T.t1, borderRadius:'12px', width:'100%', padding:'9px 12px', fontSize:'0.85rem', transition:'border-color 0.15s' };
+  const labelStyle = { display:'block', fontSize:'10px', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.1em', color:T.t3, marginBottom:'5px' };
 
   return (
     <div className="backdrop-in fixed inset-0 z-40 flex items-center justify-center p-4"
-      style={{ background: 'rgba(26,24,20,0.55)', backdropFilter: 'blur(8px)' }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-in bg-white rounded-3xl w-full max-w-md shadow-2xl flex flex-col" style={{ maxHeight: '92vh' }}>
+      style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)'}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-in rounded-3xl w-full max-w-md shadow-2xl flex flex-col" style={{maxHeight:'92vh',background:T.surface,border:`1px solid ${T.border}`}}>
         <div className="p-6 overflow-y-auto flex-1">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="font-display text-xl font-bold text-[#1A1814]">{item ? 'Modifier' : 'Ajouter manuellement'}</h2>
-            <button onClick={onClose} className="text-[#9CA3AF] hover:text-[#1A1814] text-lg leading-none">✕</button>
+            <h2 className="font-display text-xl font-bold" style={{color:T.t1}}>{item?'Modifier':'Ajouter manuellement'}</h2>
+            <button onClick={onClose} className="text-lg leading-none" style={{color:T.t3}}>✕</button>
           </div>
-
           <div className="space-y-4">
-            {/* Catégorie */}
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">Catégorie</label>
+              <label style={labelStyle}>Catégorie</label>
               <div className="flex gap-1.5 flex-wrap">
-                {Object.entries(CATS).map(([k, v]) => (
-                  <button key={k} onClick={() => set('cat', k)}
-                    className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-                    style={form.cat === k ? { background: v.color, color: 'white' } : { background: v.light, color: v.color }}>
+                {Object.entries(CATS).map(([k,v]) => (
+                  <button key={k} onClick={()=>set('cat',k)} className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                    style={form.cat===k?{background:v.color,color:'white'}:{background:dm?v.lightDark:v.light,color:v.color}}>
                     {v.icon} {v.label}
                   </button>
                 ))}
               </div>
             </div>
-
-            {/* Titre */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">Titre *</label>
-              <input value={form.title} onChange={e => set('title', e.target.value)}
-                placeholder="Titre de l'œuvre…"
-                className="w-full bg-[#F7F4EF] border border-[#E8E3DC] rounded-xl px-4 py-2.5 text-sm focus:border-[#93C5FD] transition-colors" />
+            <div><label style={labelStyle}>Titre *</label><input value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Titre…" style={inputStyle} /></div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+              <div><label style={labelStyle}>{catObj.creator}</label><input value={form.creator} onChange={e=>set('creator',e.target.value)} placeholder="Nom…" style={inputStyle} /></div>
+              <div><label style={labelStyle}>Année</label><input value={form.year} onChange={e=>set('year',e.target.value)} placeholder="2024" style={inputStyle} /></div>
             </div>
-
-            {/* Créateur + Année */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">{catObj.creator}</label>
-                <input value={form.creator} onChange={e => set('creator', e.target.value)}
-                  placeholder="Nom…"
-                  className="w-full bg-[#F7F4EF] border border-[#E8E3DC] rounded-xl px-4 py-2.5 text-sm focus:border-[#93C5FD] transition-colors" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">Année</label>
-                <input value={form.year} onChange={e => set('year', e.target.value)}
-                  placeholder="2024"
-                  className="w-full bg-[#F7F4EF] border border-[#E8E3DC] rounded-xl px-4 py-2.5 text-sm focus:border-[#93C5FD] transition-colors" />
-              </div>
-            </div>
-
-            {/* Genre */}
+            <div><label style={labelStyle}>Genre</label><input value={form.genre} onChange={e=>set('genre',e.target.value)} placeholder="Action, RPG, Thriller…" style={inputStyle} /></div>
+            <div><label style={labelStyle}>URL Couverture</label><input value={form.cover} onChange={e=>set('cover',e.target.value)} placeholder="https://…" style={inputStyle} /></div>
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">Genre</label>
-              <input value={form.genre} onChange={e => set('genre', e.target.value)}
-                placeholder="Action, RPG, Thriller, Romance…"
-                className="w-full bg-[#F7F4EF] border border-[#E8E3DC] rounded-xl px-4 py-2.5 text-sm focus:border-[#93C5FD] transition-colors" />
-            </div>
-
-            {/* Couverture */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">URL Couverture</label>
-              <input value={form.cover} onChange={e => set('cover', e.target.value)}
-                placeholder="https://…"
-                className="w-full bg-[#F7F4EF] border border-[#E8E3DC] rounded-xl px-4 py-2.5 text-sm focus:border-[#93C5FD] transition-colors" />
-            </div>
-
-            {/* État */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">État</label>
+              <label style={labelStyle}>État</label>
               <div className="flex gap-2 flex-wrap">
-                {Object.entries(STATUSES).map(([k, v]) => (
-                  <button key={k} onClick={() => set('status', k)}
-                    className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-                    style={form.status === k ? { background: v.color, color: 'white', borderColor: v.color } : { color: v.color, borderColor: v.color + '50', background: 'white' }}>
+                {Object.entries(STATUSES).map(([k,v]) => (
+                  <button key={k} onClick={()=>set('status',k)} className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
+                    style={form.status===k?{background:v.color,color:'white',borderColor:v.color}:{color:v.color,borderColor:v.color+'50',background:'transparent'}}>
                     {v.label}
                   </button>
                 ))}
               </div>
             </div>
-
-            {/* Note étoiles — seulement si terminé */}
-            {form.status === 'done' && (
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">Note</label>
-                <StarRating value={form.rating} onChange={v => set('rating', v)} size="lg" />
-              </div>
+            {form.status==='done' && (
+              <div><label style={labelStyle}>Note</label><StarRating value={form.rating} onChange={v=>set('rating',v)} size="lg" /></div>
             )}
-
-            {/* Note texte */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">Note personnelle</label>
-              <textarea value={form.note} onChange={e => set('note', e.target.value)}
-                placeholder="Recommandé par… / Contexte…" rows={3}
-                className="w-full bg-[#F7F4EF] border border-[#E8E3DC] rounded-xl px-4 py-2.5 text-sm focus:border-[#93C5FD] transition-colors resize-none" />
+            <div><label style={labelStyle}>Note personnelle</label>
+              <textarea value={form.note} onChange={e=>set('note',e.target.value)} placeholder="Recommandé par… / Contexte…" rows={3}
+                style={{...inputStyle, resize:'vertical', minHeight:'60px'}} />
             </div>
           </div>
         </div>
-
-        <div className="px-6 py-4 border-t border-[#E8E3DC] flex gap-3 justify-end">
-          <button onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm text-[#6B6560] hover:text-[#1A1814] border border-[#E8E3DC] hover:border-[#D1C9BE] transition-all">
-            Annuler
-          </button>
-          <button onClick={handleSave} disabled={!form.title.trim()}
-            className="px-5 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 active:scale-95"
-            style={{ background: catObj.color }}>
-            Enregistrer
-          </button>
+        <div className="px-6 py-4 flex gap-3 justify-end" style={{borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm transition-all" style={{color:T.t2,border:`1px solid ${T.border}`}}>Annuler</button>
+          <button onClick={handleSave} disabled={!form.title.trim()} className="px-5 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 active:scale-95" style={{background:catObj.color}}>Enregistrer</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── DETAIL MODAL ────────────────────────────────────────────── */
+/* ─── DETAIL MODAL ── */
 function DetailModal({ open, item, onClose, onEdit, onUpdate }) {
-  if (!open || !item) return null;
-  const cat = CATS[item.cat] || CATS.movie;
-  const st  = STATUSES[item.status] || STATUSES.todo;
+  const dm  = useDark();
+  const T   = useT();
+  if (!open||!item) return null;
+  const cat = CATS[item.cat]||CATS.movie;
+  const st  = STATUSES[item.status]||STATUSES.todo;
+  const catLight = dm ? cat.lightDark : cat.light;
 
   return (
     <div className="backdrop-in fixed inset-0 z-40 flex items-center justify-center p-4"
-      style={{ background: 'rgba(26,24,20,0.55)', backdropFilter: 'blur(8px)' }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-in bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: '92vh' }}>
-        {/* Cover header */}
-        <div className="relative flex-shrink-0" style={{ height: '220px', background: cat.light }}>
-          {item.cover
-            ? <img src={item.cover} alt={item.title} className="w-full h-full object-cover"
-                onError={e => { e.target.style.display='none'; }} />
-            : <div className="w-full h-full flex items-center justify-center text-7xl">{cat.icon}</div>}
+      style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)'}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-in rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col" style={{maxHeight:'92vh',background:T.surface,border:`1px solid ${T.border}`}}>
+        <div className="relative flex-shrink-0" style={{height:'220px',background:catLight}}>
+          {item.cover ? <img src={item.cover} alt={item.title} className="w-full h-full object-cover" onError={e=>{e.target.style.display='none';}} /> : <div className="w-full h-full flex items-center justify-center text-7xl">{cat.icon}</div>}
           {item.cover && <div className="cover-gradient absolute inset-0 pointer-events-none" />}
-
-          <button onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-sm text-white hover:bg-black/60 transition-colors"
-            style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}>✕</button>
-
+          <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-sm text-white transition-colors" style={{background:'rgba(0,0,0,0.4)',backdropFilter:'blur(4px)'}}>✕</button>
           {item.cover && (
             <div className="absolute bottom-0 left-0 right-0 p-4">
               <div className="font-display text-white font-bold text-lg leading-tight">{item.title}</div>
-              {(item.creator || item.year) && (
-                <div className="text-white/75 text-xs mt-0.5">{[item.creator, item.year].filter(Boolean).join(' · ')}</div>
-              )}
+              {(item.creator||item.year) && <div className="text-white/75 text-xs mt-0.5">{[item.creator,item.year].filter(Boolean).join(' · ')}</div>}
             </div>
           )}
         </div>
-
-        {/* Body */}
         <div className="overflow-y-auto flex-1 p-5">
           {!item.cover && (
             <div className="mb-4">
-              <div className="font-display font-bold text-lg text-[#1A1814] leading-tight">{item.title}</div>
-              {(item.creator || item.year) && <div className="text-sm text-[#6B6560] mt-0.5">{[item.creator, item.year].filter(Boolean).join(' · ')}</div>}
+              <div className="font-display font-bold text-lg leading-tight" style={{color:T.t1}}>{item.title}</div>
+              {(item.creator||item.year) && <div className="text-sm mt-0.5" style={{color:T.t2}}>{[item.creator,item.year].filter(Boolean).join(' · ')}</div>}
             </div>
           )}
-
-          {/* Badges */}
           <div className="flex gap-2 flex-wrap mb-4 mt-2">
-            <span className="text-[11px] font-bold px-3 py-1 rounded-full" style={{ background: cat.light, color: cat.color }}>{cat.icon} {cat.label}</span>
-            {item.genre && <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-[#F7F4EF] text-[#6B6560]">{item.genre}</span>}
-            <span className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5"
-              style={{ background: st.bg, color: st.color }}>
-              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: st.color }} />
-              {st.label}
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full" style={{background:catLight,color:cat.color}}>{cat.icon} {cat.label}</span>
+            {item.genre && <span className="text-[11px] font-bold px-3 py-1 rounded-full" style={{background:T.surface2,color:T.t2}}>{item.genre}</span>}
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5" style={{background:dm?st.bgDark:st.bg,color:st.color}}>
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{background:st.color}} />{st.label}
             </span>
           </div>
-
-          <div className="text-[11px] text-[#9CA3AF] mb-4">Ajouté le {new Date(item.added).toLocaleDateString('fr-FR')}</div>
-
-          {/* Star rating — seulement si terminé */}
-          {item.status === 'done' && (
-            <div className="mb-4 p-4 bg-[#FFFBEB] rounded-2xl border border-[#FDE68A]">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">Ma note</div>
-              <StarRating value={item.rating || 0} onChange={v => onUpdate({ ...item, rating: v })} size="lg" />
+          <div className="text-[11px] mb-4" style={{color:T.t3}}>Ajouté le {new Date(item.added).toLocaleDateString('fr-FR')}</div>
+          {item.status==='done' && (
+            <div className="mb-4 p-4 rounded-2xl" style={{background:dm?'#1F1507':'#FFFBEB',border:'1px solid #FDE68A'}}>
+              <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{color:T.t3}}>Ma note</div>
+              <StarRating value={item.rating||0} onChange={v=>onUpdate({...item,rating:v})} size="lg" />
             </div>
           )}
-
-          {/* Status change */}
           <div className="mb-4">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-2">Changer l'état</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{color:T.t3}}>Changer l'état</div>
             <div className="grid grid-cols-2 gap-2">
-              {Object.entries(STATUSES).map(([k, v]) => (
-                <button key={k} onClick={() => onUpdate({ ...item, status: k, rating: k === 'done' ? item.rating : 0 })}
+              {Object.entries(STATUSES).map(([k,v]) => (
+                <button key={k} onClick={()=>onUpdate({...item,status:k,rating:k==='done'?item.rating:0})}
                   className="py-2.5 rounded-xl text-xs font-semibold border transition-all active:scale-95"
-                  style={item.status === k ? { background: v.color, color: 'white', borderColor: v.color } : { color: v.color, borderColor: v.color + '40', background: v.bg }}>
+                  style={item.status===k?{background:v.color,color:'white',borderColor:v.color}:{color:v.color,borderColor:v.color+'40',background:dm?v.bgDark:v.bg}}>
                   {v.label}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Note texte */}
           {item.note && (
-            <div className="p-4 rounded-2xl bg-[#F7F4EF] border border-[#E8E3DC]">
-              <p className="text-xs text-[#6B6560] italic leading-relaxed">{item.note}</p>
+            <div className="p-4 rounded-2xl" style={{background:T.surface2,border:`1px solid ${T.border}`}}>
+              <p className="text-xs italic leading-relaxed" style={{color:T.t2}}>{item.note}</p>
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="px-5 pb-5 pt-3 flex gap-3 border-t border-[#E8E3DC]">
-          <button onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl text-sm border border-[#E8E3DC] text-[#6B6560] hover:text-[#1A1814] hover:border-[#D1C9BE] transition-all">
-            Fermer
-          </button>
-          <button onClick={() => onEdit(item.id)}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95"
-            style={{ background: cat.color }}>
-            Modifier
-          </button>
+        <div className="px-5 pb-5 pt-3 flex gap-3" style={{borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm transition-all" style={{border:`1px solid ${T.border}`,color:T.t2}}>Fermer</button>
+          <button onClick={()=>onEdit(item.id)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95" style={{background:cat.color}}>Modifier</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── APP ─────────────────────────────────────────────────────── */
+/* ─── APP ── */
 function App() {
   const [items,      setItems]      = useState([]);
   const [fCat,       setFCat]       = useState('all');
   const [fSt,        setFSt]        = useState('all');
+  const [fLetter,    setFLetter]    = useState('all');
+  const [fYear,      setFYear]      = useState('all');
   const [sort,       setSort]       = useState('added');
   const [query,      setQuery]      = useState('');
-  const [modal,      setModal]      = useState(null); // null | 'search' | 'add' | 'detail'
+  const [modal,      setModal]      = useState(null);
   const [editItem,   setEditItem]   = useState(null);
   const [detailItem, setDetailItem] = useState(null);
   const [manualCat,  setManualCat]  = useState('movie');
-  const [toast,      setToast]      = useState({ msg: '', on: false });
+  const [toast,      setToast]      = useState({ msg:'', on:false });
+  const [dm,         setDm]         = useState(() => localStorage.getItem('opus-dm')==='1');
 
-  /* Escape key */
+  /* dark mode persistence */
   useEffect(() => {
-    const h = e => { if (e.key === 'Escape') setModal(null); };
+    document.body.classList.toggle('dark', dm);
+    localStorage.setItem('opus-dm', dm?'1':'0');
+  }, [dm]);
+
+  /* Escape */
+  useEffect(() => {
+    const h = e => { if (e.key==='Escape') setModal(null); };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, []);
 
-  const refresh = useCallback(async () => {
-    const data = await loadItems(); setItems(data);
-  }, []);
-
+  const refresh = useCallback(async () => { const data=await loadItems(); setItems(data); }, []);
   useEffect(() => { refresh(); }, []);
 
-  const showToast = msg => {
-    setToast({ msg, on: true });
-    setTimeout(() => setToast(t => ({ ...t, on: false })), 2600);
-  };
+  const showToast = msg => { setToast({msg,on:true}); setTimeout(()=>setToast(t=>({...t,on:false})),2600); };
 
-  /* Filtered + sorted list */
   const filtered = useMemo(() => {
     let list = items.filter(it => {
-      if (fCat !== 'all' && it.cat !== fCat) return false;
-      if (fSt  !== 'all' && it.status !== fSt) return false;
+      if (fCat!=='all'    && it.cat!==fCat) return false;
+      if (fSt!=='all'     && it.status!==fSt) return false;
+      if (fLetter!=='all' && it.title?.[0]?.toUpperCase()!==fLetter) return false;
+      if (fYear!=='all'   && it.year!==fYear) return false;
       if (query && !it.title.toLowerCase().includes(query.toLowerCase())) return false;
       return true;
     });
-    if (sort === 'alpha') list.sort((a, b) => a.title.localeCompare(b.title, 'fr'));
-    else if (sort === 'year') list.sort((a, b) => (b.year || 0) - (a.year || 0));
-    else list.sort((a, b) => b.added - a.added);
+    if (sort==='alpha') list.sort((a,b)=>a.title.localeCompare(b.title,'fr'));
+    else if (sort==='year') list.sort((a,b)=>(b.year||0)-(a.year||0));
+    else list.sort((a,b)=>b.added-a.added);
     return list;
-  }, [items, fCat, fSt, sort, query]);
+  }, [items, fCat, fSt, fLetter, fYear, sort, query]);
 
-  const stats = useMemo(() => ({
-    total: items.length,
-    doing: items.filter(i => i.status === 'doing').length,
-    done:  items.filter(i => i.status === 'done').length,
-  }), [items]);
+  /* lettres et années présentes dans la bibliothèque */
+  const usedLetters = useMemo(() => new Set(items.map(i => i.title?.[0]?.toUpperCase()).filter(Boolean)), [items]);
+  const availableYears = useMemo(() => [...new Set(items.map(i=>i.year).filter(Boolean))].sort((a,b)=>b-a), [items]);
 
-  /* Handlers */
-  const handleAdd = async item => {
-    await saveNew(item); await refresh();
-    setModal(null); showToast(`"${item.title}" ajouté !`);
+  const stats = useMemo(() => ({ total:items.length, doing:items.filter(i=>i.status==='doing').length, done:items.filter(i=>i.status==='done').length }), [items]);
+
+  const handleAdd     = async item => { await saveNew(item); await refresh(); setModal(null); showToast(`"${item.title}" ajouté !`); };
+  const handleAddMany = async its  => {
+    for (const it of its) await saveNew(it);
+    await refresh();
+    setModal(null);
+    showToast(its.length===1 ? `"${its[0].title}" ajouté !` : `${its.length} œuvres ajoutées !`);
   };
-
-  const handleSave = async item => {
+  const handleSave    = async item => {
     if (editItem) { await updateItem(item); showToast('Modifié !'); }
     else          { await saveNew(item);    showToast(`"${item.title}" ajouté !`); }
     await refresh(); setModal(null); setEditItem(null);
   };
-
-  const handleDelete = async id => {
+  const handleDelete  = async id => {
     if (!confirm('Supprimer cette œuvre ?')) return;
     await deleteItem(id); await refresh(); showToast('Supprimé.');
   };
-
-  const handleEdit = id => {
-    setEditItem(items.find(i => i.id === id));
-    setDetailItem(null);
-    setModal('add');
-  };
-
-  const handleUpdate = async updated => {
-    await updateItem(updated); await refresh();
-    setDetailItem(updated);
-  };
-
-  const openDetail = id => {
-    setDetailItem(items.find(i => i.id === id));
-    setModal('detail');
-  };
-
-  const openManual = cat => {
-    setManualCat(cat); setEditItem(null); setModal('add');
-  };
+  const handleEdit    = id => { setEditItem(items.find(i=>i.id===id)); setDetailItem(null); setModal('add'); };
+  const handleUpdate  = async updated => { await updateItem(updated); await refresh(); setDetailItem(updated); };
+  const openDetail    = id => { setDetailItem(items.find(i=>i.id===id)); setModal('detail'); };
+  const openManual    = cat => { setManualCat(cat); setEditItem(null); setModal('add'); };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F7F4EF' }}>
+    <DarkCtx.Provider value={dm}>
+      <div style={{minHeight:'100vh', background:'var(--bg)'}}>
 
-      {/* ── HEADER ── */}
-      <header className="bg-white border-b border-[#E8E3DC] sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-5 h-[60px] flex items-center justify-between gap-4">
-          {/* Logo */}
-          <div className="flex items-center gap-2.5">
-            <span className="font-display font-bold text-[1.35rem] text-[#1A1814] tracking-tight leading-none">Opus</span>
-            <span className="hidden sm:block text-xs text-[#9CA3AF] font-medium">— carnet culturel</span>
-          </div>
-
-          {/* Stats */}
-          <div className="flex items-center gap-3 bg-[#F7F4EF] border border-[#E8E3DC] rounded-xl px-4 py-2 text-xs">
-            <span className="font-bold text-[#1A1814] text-sm">{stats.total}</span>
-            <span className="text-[#D1C9BE]">·</span>
-            <span style={{ color: STATUSES.doing.color }}>⬤ {stats.doing} en cours</span>
-            <span className="text-[#D1C9BE]">·</span>
-            <span style={{ color: STATUSES.done.color }}>⬤ {stats.done} terminés</span>
-          </div>
-
-          {/* Add */}
-          <button onClick={() => setModal('search')}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
-            style={{ background: '#1A1814' }}>
-            <span className="text-base leading-none">＋</span> Ajouter
-          </button>
-        </div>
-      </header>
-
-      {/* ── TOOLBAR ── */}
-      <div className="bg-white border-b border-[#E8E3DC] sticky top-[60px] z-20">
-        <div className="max-w-7xl mx-auto px-5 py-2.5 flex items-center gap-2 overflow-x-auto">
-
-          {/* Cat filter */}
-          <div className="flex gap-1 bg-[#F7F4EF] rounded-xl p-1 flex-shrink-0">
-            {[['all','Tout'], ...Object.entries(CATS).map(([k,v]) => [k, v.icon])].map(([k, lbl]) => (
-              <button key={k} onClick={() => setFCat(k)}
-                className="seg-btn px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
-                style={fCat === k
-                  ? { background: 'white', color: k === 'all' ? '#1A1814' : CATS[k]?.color, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-                  : { color: '#9CA3AF' }}>
-                {lbl}
+        {/* HEADER */}
+        <header style={{background:'var(--surface)', borderBottom:'1px solid var(--border)'}} className="sticky top-0 z-30">
+          <div className="max-w-7xl mx-auto px-5 h-[60px] flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <span className="font-display font-bold text-[1.35rem] tracking-tight leading-none" style={{color:'var(--t1)'}}>Opus</span>
+              <span className="hidden sm:block text-xs font-medium" style={{color:'var(--t3)'}}>— carnet culturel</span>
+            </div>
+            <div className="flex items-center gap-3 rounded-xl px-4 py-2 text-xs" style={{background:'var(--surface2)',border:'1px solid var(--border)'}}>
+              <span className="font-bold text-sm" style={{color:'var(--t1)'}}>{stats.total}</span>
+              <span style={{color:'var(--border2)'}}>·</span>
+              <span style={{color:STATUSES.doing.color}}>⬤ {stats.doing} en cours</span>
+              <span style={{color:'var(--border2)'}}>·</span>
+              <span style={{color:STATUSES.done.color}}>⬤ {stats.done} terminés</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Dark mode toggle */}
+              <button className="dm-toggle" onClick={()=>setDm(d=>!d)} title={dm?'Mode clair':'Mode sombre'}>
+                {dm ? '☀️' : '🌙'}
               </button>
-            ))}
-          </div>
-
-          {/* Status filter */}
-          <div className="flex gap-1 bg-[#F7F4EF] rounded-xl p-1 flex-shrink-0">
-            {[['all','Tous'], ...Object.entries(STATUSES).map(([k,v]) => [k, v.label])].map(([k, lbl]) => (
-              <button key={k} onClick={() => setFSt(k)}
-                className="seg-btn px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
-                style={fSt === k
-                  ? { background: 'white', color: k === 'all' ? '#1A1814' : STATUSES[k]?.color, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }
-                  : { color: '#9CA3AF' }}>
-                {lbl}
+              <button onClick={()=>setModal('search')}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
+                style={{background:'var(--t1)', color:'var(--bg)'}}>
+                <span className="text-base leading-none">＋</span> Ajouter
               </button>
-            ))}
+            </div>
+          </div>
+        </header>
+
+        {/* TOOLBAR */}
+        <div style={{background:'var(--surface)',borderBottom:'1px solid var(--border)'}} className="sticky top-[60px] z-20">
+          {/* Ligne 1 — catégories, états, tri, recherche */}
+          <div className="max-w-7xl mx-auto px-5 py-2.5 flex items-center gap-2 overflow-x-auto">
+            <div className="flex gap-1 rounded-xl p-1 flex-shrink-0" style={{background:'var(--surface2)'}}>
+              {[['all','Tout'], ...Object.entries(CATS).map(([k,v])=>[k,v.icon])].map(([k,lbl]) => (
+                <button key={k} onClick={()=>setFCat(k)}
+                  className="seg-btn px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
+                  style={fCat===k ? {background:'var(--surface)',color:k==='all'?'var(--t1)':CATS[k]?.color,boxShadow:'0 1px 3px rgba(0,0,0,0.15)'} : {color:'var(--t3)'}}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 rounded-xl p-1 flex-shrink-0" style={{background:'var(--surface2)'}}>
+              {[['all','Tous'], ...Object.entries(STATUSES).map(([k,v])=>[k,v.label])].map(([k,lbl]) => (
+                <button key={k} onClick={()=>setFSt(k)}
+                  className="seg-btn px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
+                  style={fSt===k ? {background:'var(--surface)',color:k==='all'?'var(--t1)':STATUSES[k]?.color,boxShadow:'0 1px 3px rgba(0,0,0,0.15)'} : {color:'var(--t3)'}}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1" />
+            {/* Filtre année */}
+            <select value={fYear} onChange={e=>setFYear(e.target.value)}
+              className="flex-shrink-0 rounded-xl px-3 py-2 text-xs font-medium cursor-pointer appearance-none"
+              style={{background:'var(--surface)',border:'1px solid var(--border)',color:fYear!=='all'?'#2563EB':'var(--t1)',fontWeight:fYear!=='all'?'700':'500'}}>
+              <option value="all">Année</option>
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <select value={sort} onChange={e=>setSort(e.target.value)}
+              className="flex-shrink-0 rounded-xl px-3 py-2 text-xs font-medium cursor-pointer appearance-none"
+              style={{background:'var(--surface)',border:'1px solid var(--border)',color:'var(--t1)'}}>
+              <option value="added">Récents</option>
+              <option value="alpha">A → Z</option>
+              <option value="year">Année</option>
+            </select>
+            <div className="relative flex-shrink-0">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style={{color:'var(--t3)'}}>⌕</span>
+              <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Filtrer…"
+                className="rounded-xl pl-7 pr-3 py-2 text-xs w-36 transition-colors"
+                style={{background:'var(--surface)',border:'1px solid var(--border)',color:'var(--t1)'}} />
+            </div>
           </div>
 
-          <div className="flex-1" />
-
-          {/* Sort */}
-          <select value={sort} onChange={e => setSort(e.target.value)}
-            className="flex-shrink-0 bg-white border border-[#E8E3DC] rounded-xl px-3 py-2 text-xs font-medium text-[#1A1814] cursor-pointer appearance-none">
-            <option value="added">Récents</option>
-            <option value="alpha">A → Z</option>
-            <option value="year">Année</option>
-          </select>
-
-          {/* Search */}
-          <div className="relative flex-shrink-0">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] text-xs pointer-events-none">⌕</span>
-            <input value={query} onChange={e => setQuery(e.target.value)}
-              placeholder="Filtrer…"
-              className="bg-white border border-[#E8E3DC] rounded-xl pl-7 pr-3 py-2 text-xs w-36 focus:border-[#93C5FD] transition-colors" />
+          {/* Ligne 2 — filtre A→Z */}
+          <div className="max-w-7xl mx-auto px-5 pb-2 flex items-center gap-1 overflow-x-auto">
+            {['all','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'].map(l => {
+              const isAll    = l === 'all';
+              const active   = fLetter === l;
+              const hasItems = isAll || usedLetters.has(l);
+              return (
+                <button key={l} onClick={() => hasItems && setFLetter(l)}
+                  className="flex-shrink-0 w-7 h-7 rounded-lg text-[11px] font-bold transition-all"
+                  style={active
+                    ? {background:'var(--t1)', color:'var(--bg)'}
+                    : hasItems
+                      ? {background:'var(--surface2)', color:'var(--t2)'}
+                      : {background:'transparent', color:'var(--border2)', cursor:'default'}}>
+                  {isAll ? '✕' : l}
+                </button>
+              );
+            })}
+            {(fLetter!=='all' || fYear!=='all') && (
+              <button onClick={()=>{setFLetter('all');setFYear('all');}}
+                className="flex-shrink-0 ml-2 px-3 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                style={{background:'#FEF2F2', color:'#DC2626'}}>
+                Réinitialiser
+              </button>
+            )}
           </div>
         </div>
+
+        {/* GRID */}
+        <main className="max-w-7xl mx-auto px-5 py-8">
+          {filtered.length===0 ? (
+            <div className="flex flex-col items-center justify-center py-28 gap-3">
+              <div className="text-6xl opacity-20 select-none">{fCat!=='all'?CATS[fCat]?.icon:'📂'}</div>
+              <div className="text-base font-semibold" style={{color:'var(--t3)'}}>Rien à afficher</div>
+              <div className="text-sm opacity-60" style={{color:'var(--t3)'}}>Clique sur ＋ Ajouter pour commencer</div>
+            </div>
+          ) : (
+            <div className="grid gap-4" style={{gridTemplateColumns:'repeat(auto-fill,minmax(148px,1fr))'}}>
+              {filtered.map(item => <Card key={item.id} item={item} onOpen={openDetail} onEdit={handleEdit} onDelete={handleDelete} />)}
+            </div>
+          )}
+        </main>
+
+        {/* MODALS */}
+        <SearchModal open={modal==='search'} initialCat={fCat!=='all'?fCat:'movie'} onClose={()=>setModal(null)} onAddMany={handleAddMany} onManual={openManual} />
+        <AddEditModal open={modal==='add'} item={editItem} defaultCat={manualCat} onClose={()=>{setModal(null);setEditItem(null);}} onSave={handleSave} />
+        <DetailModal open={modal==='detail'} item={detailItem} onClose={()=>{setModal(null);setDetailItem(null);}} onEdit={handleEdit} onUpdate={handleUpdate} />
+
+        <Toast msg={toast.msg} visible={toast.on} />
       </div>
-
-      {/* ── GRID ── */}
-      <main className="max-w-7xl mx-auto px-5 py-8">
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-28 gap-3">
-            <div className="text-6xl opacity-20 select-none">{fCat !== 'all' ? CATS[fCat]?.icon : '📂'}</div>
-            <div className="text-base font-semibold text-[#9CA3AF]">Rien à afficher</div>
-            <div className="text-sm text-[#9CA3AF] opacity-60">Clique sur ＋ Ajouter pour commencer</div>
-          </div>
-        ) : (
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))' }}>
-            {filtered.map(item => (
-              <Card key={item.id} item={item} onOpen={openDetail} onEdit={handleEdit} onDelete={handleDelete} />
-            ))}
-          </div>
-        )}
-      </main>
-
-      {/* ── MODALS ── */}
-      <SearchModal
-        open={modal === 'search'}
-        initialCat={fCat !== 'all' ? fCat : 'movie'}
-        onClose={() => setModal(null)}
-        onAdd={handleAdd}
-        onManual={openManual}
-      />
-      <AddEditModal
-        open={modal === 'add'}
-        item={editItem}
-        defaultCat={manualCat}
-        onClose={() => { setModal(null); setEditItem(null); }}
-        onSave={handleSave}
-      />
-      <DetailModal
-        open={modal === 'detail'}
-        item={detailItem}
-        onClose={() => { setModal(null); setDetailItem(null); }}
-        onEdit={handleEdit}
-        onUpdate={handleUpdate}
-      />
-
-      {/* ── TOAST ── */}
-      <Toast msg={toast.msg} visible={toast.on} />
-    </div>
+    </DarkCtx.Provider>
   );
 }
 
