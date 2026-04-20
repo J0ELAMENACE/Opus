@@ -589,6 +589,42 @@ function App() {
   const openDetail    = id => { setDetailItem(items.find(i=>i.id===id)); setModal('detail'); };
   const openManual    = cat => { setManualCat(cat); setEditItem(null); setModal('add'); };
 
+  /* ── EXPORT ── */
+  const handleExport = () => {
+    const data = JSON.stringify(items, null, 2);
+    const blob  = new Blob([data], { type: 'application/json' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    const date  = new Date().toISOString().slice(0,10);
+    a.href      = url;
+    a.download  = `opus-backup-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`${items.length} œuvres exportées !`);
+  };
+
+  /* ── IMPORT ── */
+  const importRef = useRef(null);
+  const handleImport = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (!Array.isArray(imported)) { showToast('Fichier invalide.'); return; }
+        const existingIds = new Set(items.map(i => i.id));
+        const toAdd = imported.filter(i => i.id && i.title && !existingIds.has(i.id));
+        if (toAdd.length === 0) { showToast('Aucune nouvelle œuvre à importer.'); return; }
+        for (const it of toAdd) await saveNew(it);
+        await refresh();
+        showToast(`${toAdd.length} œuvre${toAdd.length>1?'s':''} importée${toAdd.length>1?'s':''} !`);
+      } catch { showToast('Erreur de lecture du fichier.'); }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <DarkCtx.Provider value={dm}>
       <div style={{minHeight:'100vh', background:'var(--bg)'}}>
@@ -608,6 +644,12 @@ function App() {
               <span style={{color:STATUSES.done.color}}>⬤ {stats.done} terminés</span>
             </div>
             <div className="flex items-center gap-2">
+              {/* Import caché */}
+              <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
+              {/* Export */}
+              <button onClick={handleExport} className="dm-toggle" title="Exporter la bibliothèque">⬆</button>
+              {/* Import */}
+              <button onClick={()=>importRef.current?.click()} className="dm-toggle" title="Importer une bibliothèque">⬇</button>
               {/* Dark mode toggle */}
               <button className="dm-toggle" onClick={()=>setDm(d=>!d)} title={dm?'Mode clair':'Mode sombre'}>
                 {dm ? '☀️' : '🌙'}
