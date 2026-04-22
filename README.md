@@ -11,6 +11,70 @@
 
 ---
 
+## Modes d'utilisation
+
+Opus s'adapte à ton setup — trois façons de l'utiliser, du plus simple au plus pérenne.
+
+---
+
+### Mode 1 — Fichier HTML local (sans installation)
+
+**Le plus simple.** Ouvre `index.html` directement dans ton navigateur, aucune installation requise.
+
+- ✅ Zéro installation
+- ✅ Fonctionne sur tous les OS
+- ⚠️ Données perdues si tu vides le cache du navigateur
+
+```
+Télécharge index.html → Ouvre dans le navigateur → C'est prêt
+```
+
+---
+
+### Mode 2 — Application desktop Windows / Linux (recommandé)
+
+**La meilleure expérience.** Une vraie application installée sur ton PC, qui tourne sans navigateur.
+
+- ✅ Données stockées localement dans `%AppData%\opus\opus-data.json`
+- ✅ Fonctionne hors ligne (sauf pour la recherche d'œuvres)
+- ✅ Icône dans le menu démarrer et le bureau
+- ✅ Import / Export natif via dialog fichier Windows
+- ✅ Mise à jour facile via `update.ps1`
+
+**Installation Windows :**
+```
+1. Télécharge et extrais le dossier opus-electron/
+2. Remplis tes clés API dans index.html (OMDB + RAWG)
+3. Double-clique sur installer.ps1
+4. Lance Opus Setup 1.0.0.exe
+```
+
+**Mise à jour :**
+```
+Double-clique sur update.ps1
+→ Télécharge la dernière version depuis GitHub
+→ Rebuild automatique
+```
+
+> Le dossier `opus-electron/` contient tout le nécessaire.
+
+---
+
+### Mode 3 — Hébergement local sur VM ou NAS (persistant, multi-appareils)
+
+**Pour accéder depuis plusieurs appareils sur ton réseau local.** Déploie Opus sur une machine dédiée (PC recyclé, Raspberry Pi, mini PC, NAS).
+
+- ✅ Accessible depuis tous les appareils du réseau (PC, téléphone, tablette)
+- ✅ Données dans PostgreSQL — robuste et sauvegardable
+- ✅ Aucun accès externe requis
+- ⚙️ Nécessite Ubuntu + Node.js + PostgreSQL + Nginx + PM2
+
+```
+http://IP_DE_TA_MACHINE  →  accessible sur tout ton réseau local
+```
+
+---
+
 ## Fonctionnalités
 
 - Recherche automatique via APIs gratuites (affiches, genres, dates, créateurs)
@@ -21,41 +85,7 @@
 - Filtres par catégorie, état, lettre A→Z, année de sortie
 - Recherche texte en temps réel + tri
 - Export / Import JSON pour synchroniser plusieurs installations
-- Mode clair / Mode sombre (préférence sauvegardée)
-- Deux modes de stockage : `localStorage` (local) ou API REST + PostgreSQL (VM/NAS)
-
----
-
-## Stack technique
-
-| Couche          | Technologie                                   |
-|-----------------|-----------------------------------------------|
-| Frontend        | React 18 + Tailwind CSS (via CDN)             |
-| Recherche       | OMDb · TVmaze · AniList · Google Books · RAWG |
-| Backend         | Node.js + Express                             |
-| Base de données | PostgreSQL                                    |
-| Proxy           | Nginx                                         |
-| Process manager | PM2                                           |
-
----
-
-## Structure du projet
-
-```
-opus/
-├── index.html          ← Frontend (React + Tailwind, standalone)
-├── server/
-│   ├── index.js        ← API REST (Node.js + Express + PostgreSQL)
-│   ├── package.json
-│   └── .env.example    ← Variables d'environnement (à copier en .env)
-├── nginx/
-│   └── opus.conf       ← Configuration Nginx (exemple)
-├── assets/
-│   ├── logo.svg        ← Logo
-│   └── screenshot.png  ← Aperçu de l'application
-├── .gitignore
-└── README.md
-```
+- Mode clair / Mode sombre
 
 ---
 
@@ -76,7 +106,6 @@ opus/
 Dans `index.html`, remplace les constantes en haut du script :
 
 ```js
-const API      = null;               // null = localStorage | 'http://IP/api' = backend
 const OMDB_KEY = 'VOTRE_CLE_OMDB';  // → https://omdbapi.com
 const RAWG_KEY = 'VOTRE_CLE_RAWG';  // → https://rawg.io/apidocs
 ```
@@ -85,31 +114,45 @@ TVmaze, AniList et Google Books ne nécessitent aucune clé.
 
 ---
 
-## Mode 1 — Fichier HTML seul (local, sans serveur)
+## Structure du projet
 
-Ouvre simplement `index.html` dans ton navigateur.
-Les données sont stockées dans le `localStorage` du navigateur.
-
-> ⚠️ Les données sont perdues si tu vides le cache du navigateur.
+```
+opus/
+├── index.html              ← Frontend standalone (tous les modes)
+├── assets/
+│   ├── logo.svg
+│   └── screenshot.png
+├── opus-electron/          ← Application desktop (Mode 2)
+│   ├── index.html
+│   ├── package.json
+│   ├── installer.ps1       ← Installation Windows
+│   ├── update.ps1          ← Mise à jour Windows
+│   ├── electron/
+│   │   ├── main.js
+│   │   └── preload.js
+│   └── assets/
+│       ├── icon.ico
+│       └── icon.png
+├── server/                 ← API REST (Mode 3)
+│   ├── index.js
+│   ├── package.json
+│   └── .env.example
+├── nginx/
+│   └── opus.conf
+├── .gitignore
+└── README.md
+```
 
 ---
 
-## Mode 2 — Hébergement local sur VM ou NAS (persistant)
-
-> ℹ️ **Cette section est un exemple d'hébergement en self-hosting local.**
-> Elle décrit comment déployer Opus sur une machine dédiée sur ton réseau local
-> (PC recyclé, Raspberry Pi, mini PC, NAS avec Docker, etc.).
-> L'application reste accessible uniquement depuis ton réseau — aucun accès externe requis.
+## Mode 3 — Installation VM détaillée
 
 ### Prérequis
 
 - Ubuntu 22.04 ou 24.04
-- Node.js 20 LTS
-- PostgreSQL 14+
-- Nginx
-- PM2
+- Node.js 20 LTS · PostgreSQL 14+ · Nginx · PM2
 
-### Installation complète en une commande
+### Installation en une commande
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -119,7 +162,7 @@ sudo systemctl enable postgresql nginx
 sudo npm install -g pm2
 ```
 
-### Créer la base de données
+### Base de données
 
 ```bash
 sudo -u postgres psql << 'SQL'
@@ -129,82 +172,50 @@ CREATE DATABASE opus OWNER opus;
 SQL
 ```
 
-### Déployer le backend
+### Backend
 
 ```bash
-sudo mkdir -p /opt/opus-api
-sudo chown -R $USER:$USER /opt/opus-api
-cp server/* /opt/opus-api/
-cd /opt/opus-api
-npm install
-cp .env.example .env
-nano .env   # remplis DATABASE_URL et CORS_ORIGIN
+sudo mkdir -p /opt/opus-api && sudo chown -R $USER:$USER /opt/opus-api
+cp server/* /opt/opus-api/ && cd /opt/opus-api
+npm install && cp .env.example .env && nano .env
+pm2 start index.js --name opus-api && pm2 save
 ```
 
-### Lancer avec PM2
+### Frontend
 
 ```bash
-pm2 start /opt/opus-api/index.js --name opus-api
-sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
-pm2 save
+sudo mkdir -p /var/www/opus && sudo cp index.html /var/www/opus/
+# Dans index.html : const API = 'http://IP_DE_TA_MACHINE/api';
 ```
 
-### Déployer le frontend
-
-```bash
-sudo mkdir -p /var/www/opus
-sudo cp index.html /var/www/opus/index.html
-```
-
-Dans `index.html`, remplace :
-```js
-const API = null;
-```
-par :
-```js
-const API = 'http://IP_DE_TA_MACHINE/api';
-```
-
-### Configurer Nginx
+### Nginx
 
 ```bash
 sudo cp nginx/opus.conf /etc/nginx/sites-available/opus
 sudo ln -s /etc/nginx/sites-available/opus /etc/nginx/sites-enabled/
 sudo rm /etc/nginx/sites-enabled/default
-sudo nginx -t
-sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 ### Mise à jour du frontend
 
 ```bash
 sudo cp ~/index.html /var/www/opus/index.html
+# Ctrl+F5 dans le navigateur
 ```
-
-Puis `Ctrl+F5` dans le navigateur. Aucun redémarrage nécessaire.
 
 ---
 
 ## Export / Import
 
-- **Export** (bouton ⬆ dans le header) → télécharge `opus-backup-DATE.json`
-- **Import** (bouton ⬇ dans le header) → lit un fichier JSON et ajoute uniquement les œuvres absentes (comparaison par ID, zéro doublon)
+Le bouton **⬆** exporte ta bibliothèque en JSON.
+Le bouton **⬇** importe un fichier JSON en ajoutant uniquement les œuvres absentes (zéro doublon).
 
-Utile pour synchroniser deux installations sur des machines différentes.
-
----
-
-## Variables d'environnement (.env)
-
-| Variable       | Description                    | Exemple                                     |
-|----------------|--------------------------------|---------------------------------------------|
-| `PORT`         | Port de l'API                  | `3001`                                      |
-| `DATABASE_URL` | URL de connexion PostgreSQL    | `postgresql://opus:mdp@localhost:5432/opus` |
-| `CORS_ORIGIN`  | Origine autorisée pour le CORS | `http://192.168.1.XX`                       |
+Utile pour synchroniser entre l'app desktop, le site web, et d'autres machines.
 
 ---
 
-## Endpoints API
+## Endpoints API (Mode 3)
 
 | Méthode | Route            | Description       |
 |---------|------------------|-------------------|
@@ -217,37 +228,14 @@ Utile pour synchroniser deux installations sur des machines différentes.
 
 ---
 
-## Architecture
+## Stack technique
 
-```
-Navigateur (réseau local)
-    │
-    ▼
-Nginx :80
-    ├── /        → /var/www/opus/index.html
-    └── /api/*   → localhost:3001
-                          │
-                    PostgreSQL :5432
-                      table: items
-```
-
----
-
-## Commandes utiles
-
-```bash
-# API
-pm2 status
-pm2 logs opus-api
-pm2 restart opus-api
-
-# Santé de l'API
-curl http://localhost:3001/api/health
-
-# Sauvegarde base de données
-sudo -u postgres pg_dump opus > ~/opus-backup-$(date +%F).sql
-
-# Nginx
-sudo nginx -t
-sudo systemctl reload nginx
-```
+| Couche          | Technologie                                   |
+|-----------------|-----------------------------------------------|
+| Frontend        | React 18 + Tailwind CSS (via CDN)             |
+| Desktop         | Electron 28                                   |
+| Recherche       | OMDb · TVmaze · AniList · Google Books · RAWG |
+| Backend         | Node.js + Express                             |
+| Base de données | PostgreSQL                                    |
+| Proxy           | Nginx                                         |
+| Process manager | PM2                                           |
