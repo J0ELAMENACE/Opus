@@ -35,34 +35,39 @@ Télécharge index.html → Ouvre dans le navigateur → C'est prêt
 
 **La meilleure expérience.** Une vraie application installée sur ton PC, qui tourne sans navigateur.
 
-- ✅ Données stockées localement dans `%AppData%\opus\opus-data.json`
+- ✅ Données stockées localement (`%AppData%\opus\opus-data.json` sur Windows, `~/.config/opus/` sur Linux)
 - ✅ Fonctionne hors ligne (sauf pour la recherche d'œuvres)
-- ✅ Icône dans le menu démarrer et le bureau
-- ✅ Import / Export natif via dialog fichier Windows
-- ✅ Mise à jour facile via `update.ps1`
+- ✅ Icône dans le menu démarrer / lanceur d'apps
+- ✅ Import / Export natif via dialog fichier
+- ✅ Mise à jour facile via script
 
 **Installation Windows :**
 ```
-1. Télécharge et extrais le dossier opus-electron/
+1. Copie le dossier opus-electron/ sur ton PC
 2. Remplis tes clés API dans index.html (OMDB + RAWG)
 3. Double-clique sur installer.ps1
 4. Lance Opus Setup 1.0.0.exe
 ```
 
-**Mise à jour :**
-```
-Double-clique sur update.ps1
-→ Télécharge la dernière version depuis GitHub
-→ Rebuild automatique
+**Installation Linux (Arch / Ubuntu / Debian) :**
+```bash
+cp -r opus-electron/ ~/opus-electron/
+# Remplis tes clés API dans ~/opus-electron/index.html
+chmod +x ~/opus-electron/install-linux.sh
+~/opus-electron/install-linux.sh
 ```
 
-> Le dossier `opus-electron/` contient tout le nécessaire.
+**Mise à jour Windows :**
+```
+Double-clique sur update.ps1
+→ Télécharge la dernière version depuis GitHub + rebuild automatique
+```
 
 ---
 
 ### Mode 3 — Hébergement local sur VM ou NAS (persistant, multi-appareils)
 
-**Pour accéder depuis plusieurs appareils sur ton réseau local.** Déploie Opus sur une machine dédiée (PC recyclé, Raspberry Pi, mini PC, NAS).
+**Pour accéder depuis plusieurs appareils sur ton réseau local.**
 
 - ✅ Accessible depuis tous les appareils du réseau (PC, téléphone, tablette)
 - ✅ Données dans PostgreSQL — robuste et sauvegardable
@@ -118,22 +123,23 @@ TVmaze, AniList et Google Books ne nécessitent aucune clé.
 
 ```
 opus/
-├── index.html              ← Frontend standalone (tous les modes)
+├── index.html                  ← Frontend standalone (tous les modes)
 ├── assets/
 │   ├── logo.svg
 │   └── screenshot.png
-├── opus-electron/          ← Application desktop (Mode 2)
+├── opus-electron/              ← Application desktop (Mode 2)
 │   ├── index.html
 │   ├── package.json
-│   ├── installer.ps1       ← Installation Windows
-│   ├── update.ps1          ← Mise à jour Windows
+│   ├── installer.ps1           ← Installation Windows
+│   ├── update.ps1              ← Mise à jour Windows
+│   ├── install-linux.sh        ← Installation Linux (Arch/Ubuntu/Debian)
 │   ├── electron/
 │   │   ├── main.js
 │   │   └── preload.js
 │   └── assets/
-│       ├── icon.ico
-│       └── icon.png
-├── server/                 ← API REST (Mode 3)
+│       ├── icon.ico            ← Icône Windows
+│       └── icon.png            ← Icône Linux
+├── server/                     ← API REST (Mode 3)
 │   ├── index.js
 │   ├── package.json
 │   └── .env.example
