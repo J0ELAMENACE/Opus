@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opus</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{display:['"Playfair Display"','Georgia','serif'],body:['Outfit','sans-serif']}}}}</script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+  :root {
+    --bg:#F7F4EF; --surface:#ffffff; --surface2:#F7F4EF; --hover:#EDE9E3;
+    --border:#E8E3DC; --border2:#D1C9BE;
+    --t1:#1A1814; --t2:#6B6560; --t3:#9CA3AF;
+    --shimmer1:#EDE9E3; --shimmer2:#E2DDD6;
+  }
+  body.dark {
+    --bg:#111009; --surface:#1C1A17; --surface2:#222019; --hover:#2A2824;
+    --border:#2E2B27; --border2:#3D3A35;
+    --t1:#F0EDE8; --t2:#A09890; --t3:#6B6560;
+    --shimmer1:#252220; --shimmer2:#1E1C19;
+  }
+
+  body { font-family:'Outfit',sans-serif; background:var(--bg); color:var(--t1); min-height:100vh; transition:background 0.2s, color 0.2s; }
+
+  .card-lift { transition:transform 0.25s ease,box-shadow 0.25s ease; }
+  .card-lift:hover { transform:translateY(-5px); box-shadow:0 24px 48px rgba(0,0,0,0.18); }
+  .cover-gradient { background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.25) 55%,transparent 100%); }
+  .modal-in { animation:modalIn 0.22s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes modalIn { from{opacity:0;transform:scale(0.96) translateY(10px)} to{opacity:1;transform:none} }
+  .backdrop-in { animation:fadeIn 0.18s ease; }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .toast-in { animation:toastIn 0.3s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes toastIn { from{opacity:0;transform:translateY(14px) scale(0.96)} to{opacity:1;transform:none} }
+  .star-btn { cursor:pointer; transition:transform 0.1s,color 0.1s; line-height:1; }
+  .star-btn:hover { transform:scale(1.25); }
+  .seg-btn { transition:all 0.15s; }
+  ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+  .shimmer { background:linear-gradient(90deg,var(--shimmer1) 25%,var(--shimmer2) 50%,var(--shimmer1) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+  @keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
+  input,select,textarea { font-family:'Outfit',sans-serif; }
+  input:focus,select:focus,textarea:focus { outline:none; }
+  .action-btn { opacity:0; transition:opacity 0.15s; }
+  .card-root:hover .action-btn { opacity:1; }
+  .dm-toggle { cursor:pointer; width:46px; height:46px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; transition:all 0.15s; border:1.5px solid var(--border); background:var(--surface2); color:var(--t2); }
+  .dm-toggle:hover { background:var(--hover); color:var(--t1); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo, useRef, createContext, useContext } = React;
+
+/* ─── CONFIG ── */
+const API      = null; // Electron : stockage fichier local via IPC
+const OMDB_KEY = 'VOTRE_CLE_OMDB';
+const RAWG_KEY = 'VOTRE_CLE_RAWG';
+
+/* ─── THEME CONTEXT ── */
+const DarkCtx = createContext(false);
+const useDark = () => useContext(DarkCtx);
+
+/* helper — retourne les couleurs de surface selon le thème */
+function useT() {
+  const dm = useDark();
+  return {
+    bg:       dm ? '#111009' : '#F7F4EF',
+    surface:  dm ? '#1C1A17' : '#ffffff',
+    surface2: dm ? '#222019' : '#F7F4EF',
+    hover:    dm ? '#2A2824' : '#EDE9E3',
+    border:   dm ? '#2E2B27' : '#E8E3DC',
+    border2:  dm ? '#3D3A35' : '#D1C9BE',
+    t1:       dm ? '#F0EDE8' : '#1A1814',
+    t2:       dm ? '#A09890' : '#6B6560',
+    t3:       dm ? '#6B6560' : '#9CA3AF',
+  };
+}
+
+/* ─── CONSTANTS ── */
+const CATS = {
+  movie:  { label:'Films',  icon:'🎬', color:'#DC2626', light:'#FEF2F2', lightDark:'#2A1212', creator:'Réalisateur' },
+  series: { label:'Séries', icon:'📺', color:'#16A34A', light:'#F0FDF4', lightDark:'#0E2318', creator:'Créateur'    },
+  anime:  { label:'Animés', icon:'⛩️', color:'#D97706', light:'#FFFBEB', lightDark:'#2A1F07', creator:'Studio'      },
+  book:   { label:'Livres', icon:'📚', color:'#7C3AED', light:'#F5F3FF', lightDark:'#1D1230', creator:'Auteur'      },
+  game:   { label:'Jeux',   icon:'🎮', color:'#2563EB', light:'#EFF6FF', lightDark:'#0D1A33', creator:'Studio'      },
+};
+const STATUSES = {
+  todo:    { label:'À faire',   color:'#9CA3AF', bg:'#F9FAFB', bgDark:'#1A1A1A' },
+  doing:   { label:'En cours',  color:'#D97706', bg:'#FFFBEB', bgDark:'#1F1507' },
+  done:    { label:'Terminé',   color:'#16A34A', bg:'#F0FDF4', bgDark:'#0A1F10' },
+  dropped: { label:'Abandonné', color:'#DC2626', bg:'#FEF2F2', bgDark:'#1F0A0A' },
+};
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+/* ─── API SEARCH ── */
+async function searchMovies(q, limit=5) {
+  try {
+    const r = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&s=${encodeURIComponent(q)}&type=movie`);
+    const d = await r.json();
+    if (!d.Search) return [];
+    return Promise.all(d.Search.slice(0, limit).map(async item => {
+      try {
+        const r2 = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${item.imdbID}`);
+        const dd = await r2.json();
+        return { title:dd.Title, creator:dd.Director!=='N/A'?dd.Director:null, year:dd.Year?.slice(0,4)||null, cover:dd.Poster!=='N/A'?dd.Poster:null, genre:dd.Genre!=='N/A'?dd.Genre?.split(',')[0].trim():null, description:dd.Plot!=='N/A'?dd.Plot:null };
+      } catch { return { title:item.Title, year:item.Year?.slice(0,4), cover:item.Poster!=='N/A'?item.Poster:null, creator:null, genre:null, description:null }; }
+    }));
+  } catch { return []; }
+}
+async function searchSeries(q, limit=5) {
+  try {
+    const r = await fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(q)}`);
+    const d = await r.json();
+    return d.slice(0, limit).map(({ show:s }) => ({ title:s.name, creator:null, year:s.premiered?.slice(0,4)||null, cover:s.image?.original||s.image?.medium||null, genre:s.genres?.[0]||null, description:s.summary?.replace(/<[^>]*>/g,'').slice(0,200)||null }));
+  } catch { return []; }
+}
+async function searchAnime(q, limit=5) {
+  try {
+    const r = await fetch('https://graphql.anilist.co', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ query:`query($s:String,$n:Int){Page(perPage:$n){media(search:$s,type:ANIME,sort:POPULARITY_DESC){title{romaji english}startDate{year}genres coverImage{extraLarge large}description(asHtml:false)}}}`, variables:{s:q,n:limit} }) });
+    const d = await r.json();
+    return (d.data?.Page?.media||[]).map(m => ({ title:m.title.english||m.title.romaji, creator:null, year:m.startDate?.year?.toString()||null, cover:m.coverImage?.extraLarge||m.coverImage?.large||null, genre:m.genres?.[0]||null, description:m.description?.replace(/<[^>]*>/g,'').slice(0,200)||null }));
+  } catch { return []; }
+}
+async function searchBooks(q, limit=5) {
+  try {
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=${limit}&orderBy=relevance&langRestrict=fr`);
+    const d = await r.json();
+    if (!d.items) return [];
+    return d.items.map(b => {
+      const info = b.volumeInfo||{};
+      const cover = info.imageLinks?.extraLarge||info.imageLinks?.large||info.imageLinks?.thumbnail||null;
+      return { title:info.title||null, creator:info.authors?.[0]||null, year:info.publishedDate?.slice(0,4)||null, cover:cover?cover.replace('http://','https://').replace('&zoom=1','&zoom=3'):null, genre:info.categories?.[0]?.split('/')[0].trim()||null, description:info.description?.slice(0,200)||null };
+    });
+  } catch { return []; }
+}
+async function searchGames(q, limit=5) {
+  try {
+    const r = await fetch(`https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(q)}&page_size=${limit}`);
+    const d = await r.json();
+    return (d.results||[]).map(g => ({ title:g.name, creator:null, year:g.released?.slice(0,4)||null, cover:g.background_image||null, genre:g.genres?.[0]?.name||null, description:null }));
+  } catch { return []; }
+}
+const SEARCH_FNS = { movie:searchMovies, series:searchSeries, anime:searchAnime, book:searchBooks, game:searchGames };
+
+/* ─── STORAGE ── */
+const IS_ELECTRON = typeof window !== 'undefined' && !!window.electronAPI;
+
+async function loadItems() {
+  if (IS_ELECTRON) return window.electronAPI.loadItems();
+  if (API) { try { const r=await fetch(`${API}/items`); return r.json(); } catch { return []; } }
+  try { return JSON.parse(localStorage.getItem('opus-v2')||'[]'); } catch { return []; }
+}
+function persist(items) {
+  if (!IS_ELECTRON) localStorage.setItem('opus-v2',JSON.stringify(items));
+}
+async function saveNew(item) {
+  if (IS_ELECTRON) { await window.electronAPI.addItem(item); return; }
+  if (API) { await fetch(`${API}/items`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)}); return; }
+  const all=await loadItems(); all.unshift(item); persist(all);
+}
+async function updateItem(item) {
+  if (IS_ELECTRON) { await window.electronAPI.updateItem(item); return; }
+  if (API) { await fetch(`${API}/items/${item.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)}); return; }
+  const all=await loadItems(); const idx=all.findIndex(i=>i.id===item.id); if(idx>=0) all[idx]=item; persist(all);
+}
+async function deleteItem(id) {
+  if (IS_ELECTRON) { await window.electronAPI.deleteItem(id); return; }
+  if (API) { await fetch(`${API}/items/${id}`,{method:'DELETE'}); return; }
+  const all=await loadItems(); persist(all.filter(i=>i.id!==id));
+}
+
+/* ─── STAR RATING ── */
+function StarRating({ value=0, onChange, size='md' }) {
+  const [hover, setHover] = useState(0);
+  const sz = size==='lg' ? '1.8rem' : '1.2rem';
+  return (
+    <div style={{display:'flex',gap:'2px'}}>
+      {[1,2,3,4,5].map(n => (
+        <span key={n} className="star-btn select-none"
+          style={{fontSize:sz, color: n<=(hover||value) ? '#F59E0B' : 'var(--border2)'}}
+          onClick={() => onChange && onChange(n===value?0:n)}
+          onMouseEnter={() => onChange && setHover(n)}
+          onMouseLeave={() => onChange && setHover(0)}>★</span>
+      ))}
+    </div>
+  );
+}
+
+/* ─── TOAST ── */
+function Toast({ msg, visible }) {
+  if (!visible) return null;
+  return <div className="toast-in fixed bottom-6 right-6 z-50 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-2xl pointer-events-none" style={{background:'var(--t1)'}}>{msg}</div>;
+}
+
+/* ─── CARD ── */
+function Card({ item, onOpen, onEdit, onDelete }) {
+  const dm  = useDark();
+  const cat = CATS[item.cat]||CATS.movie;
+  const st  = STATUSES[item.status]||STATUSES.todo;
+  const catLight = dm ? cat.lightDark : cat.light;
+  const stBg     = dm ? st.bgDark    : st.bg;
+  return (
+    <div className="card-root card-lift rounded-2xl overflow-hidden cursor-pointer relative"
+      style={{background:'var(--surface)', border:'1px solid var(--border)'}}
+      onClick={() => onOpen(item.id)}>
+      <div className="relative overflow-hidden" style={{aspectRatio:'2/3', background:catLight}}>
+        {item.cover ? <img src={item.cover} alt={item.title} loading="lazy" className="w-full h-full object-cover" onError={e=>{e.currentTarget.style.display='none';e.currentTarget.nextSibling.style.display='flex';}} /> : null}
+        <div className="w-full h-full items-center justify-center text-5xl absolute inset-0" style={{background:catLight, display:item.cover?'none':'flex'}}>{cat.icon}</div>
+        {item.cover && <div className="cover-gradient absolute inset-0 pointer-events-none" />}
+        <div className="absolute top-2 left-2">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{background:stBg, color:st.color, border:`1px solid ${st.color}40`}}>{st.label}</span>
+        </div>
+        <div className="action-btn absolute top-2 right-2 flex gap-1" onClick={e=>e.stopPropagation()}>
+          <button onClick={()=>onEdit(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-colors" style={{background:'rgba(255,255,255,0.9)',backdropFilter:'blur(4px)',color:'#374151'}}>✎</button>
+          <button onClick={()=>onDelete(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-colors" style={{background:'rgba(255,255,255,0.9)',backdropFilter:'blur(4px)',color:'#374151'}}>✕</button>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{background:cat.color}} />
+      </div>
+      <div className="p-3">
+        <div className="text-[13px] font-semibold truncate leading-snug mb-0.5" style={{color:'var(--t1)'}} title={item.title}>{item.title}</div>
+        <div className="text-[11px] truncate" style={{color:'var(--t3)'}}>{[item.creator,item.year].filter(Boolean).join(' · ')}</div>
+        {item.genre && <div className="mt-2"><span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{background:catLight, color:cat.color}}>{item.genre}</span></div>}
+        {item.status==='done' && item.rating>0 && (
+          <div className="mt-1.5 flex">{[1,2,3,4,5].map(n=><span key={n} style={{fontSize:'11px',color:n<=item.rating?'#F59E0B':'var(--border2)'}}>★</span>)}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── SEARCH MODAL ── */
+function SearchModal({ open, initialCat, onClose, onAddMany, onManual }) {
+  const dm = useDark();
+  const T  = useT();
+  const [cat,      setCat]      = useState(initialCat||'movie');
+  const [query,    setQuery]    = useState('');
+  const [results,  setResults]  = useState([]);
+  const [phase,    setPhase]    = useState('idle');
+  const [limit,    setLimit]    = useState(5);
+  const [selected, setSelected] = useState(new Set());
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (open) { setCat(initialCat||'movie'); setQuery(''); setResults([]); setPhase('idle'); setSelected(new Set()); setTimeout(()=>inputRef.current?.focus(),120); }
+  }, [open, initialCat]);
+
+  const doSearch = async () => {
+    if (!query.trim()) return;
+    setPhase('loading'); setResults([]); setSelected(new Set());
+    try { const res=await SEARCH_FNS[cat](query.trim(),limit); setResults(res); setPhase(res.length?'done':'empty'); }
+    catch { setPhase('error'); }
+  };
+
+  const toggleSelect = i => setSelected(prev => { const n=new Set(prev); n.has(i)?n.delete(i):n.add(i); return n; });
+  const handleAddSelected = () => {
+    onAddMany([...selected].map(i=>({...results[i],cat,id:uid(),status:'todo',rating:0,added:Date.now()})));
+    setSelected(new Set());
+  };
+
+  if (!open) return null;
+  const catObj = CATS[cat];
+  const catLight = dm ? catObj.lightDark : catObj.light;
+
+  return (
+    <div className="backdrop-in fixed inset-0 z-40 flex items-center justify-center p-4"
+      style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)'}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-in rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col" style={{maxHeight:'90vh',background:T.surface,border:`1px solid ${T.border}`}}>
+
+        <div className="p-6 pb-4">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-display text-xl font-bold" style={{color:T.t1}}>Ajouter une œuvre</h2>
+            <button onClick={onClose} className="text-lg leading-none transition-colors" style={{color:T.t3}}>✕</button>
+          </div>
+          <div className="flex gap-1.5 flex-wrap mb-4">
+            {Object.entries(CATS).map(([k,v]) => (
+              <button key={k} onClick={()=>{setCat(k);setResults([]);setPhase('idle');setSelected(new Set());}}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                style={cat===k?{background:v.color,color:'white'}:{background:dm?v.lightDark:v.light,color:v.color}}>
+                {v.icon} {v.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input ref={inputRef} value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doSearch()}
+              placeholder="Rechercher…"
+              className="flex-1 rounded-xl px-4 py-2.5 text-sm transition-colors"
+              style={{background:T.surface2,border:`1.5px solid ${T.border}`,color:T.t1}} />
+            <select value={limit} onChange={e=>setLimit(Number(e.target.value))}
+              className="rounded-xl px-3 py-2.5 text-sm cursor-pointer text-center appearance-none"
+              style={{background:T.surface2,border:`1.5px solid ${T.border}`,color:T.t1}}>
+              {[5,10,15,20].map(n=><option key={n} value={n}>{n}</option>)}
+            </select>
+            <button onClick={doSearch} disabled={phase==='loading'}
+              className="px-4 py-2.5 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-50 active:scale-95"
+              style={{background:catObj.color}}>
+              {phase==='loading'?'⟳':'Chercher'}
+            </button>
+          </div>
+          {phase==='done' && results.length>0 && (
+            <div className="flex items-center justify-between mt-3 pt-3" style={{borderTop:`1px solid ${T.border}`}}>
+              <button onClick={()=>setSelected(selected.size===results.length?new Set():new Set(results.map((_,i)=>i)))}
+                className="text-xs font-medium transition-colors" style={{color:T.t2}}>
+                {selected.size===results.length?'Tout désélectionner':'Tout sélectionner'}
+              </button>
+              <span className="text-xs" style={{color:T.t3}}>{results.length} résultat{results.length>1?'s':''} · coche pour sélectionner</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-2">
+          {phase==='loading' && [0,1,2].map(i=>(
+            <div key={i} className="flex gap-3 p-3 rounded-xl" style={{border:`1px solid ${T.border}`}}>
+              <div className="shimmer w-10 h-14 rounded-lg flex-shrink-0" />
+              <div className="flex-1 space-y-2 pt-1"><div className="shimmer h-3 rounded-full w-3/4" /><div className="shimmer h-3 rounded-full w-1/2" /></div>
+            </div>
+          ))}
+          {phase==='empty'  && <div className="text-center py-10 text-sm" style={{color:T.t3}}>Aucun résultat. Essaie un autre terme.</div>}
+          {phase==='error'  && <div className="text-center py-10 text-sm text-red-400">Erreur réseau. Utilise la saisie manuelle.</div>}
+          {phase==='idle'   && <div className="text-center py-10 text-sm" style={{color:T.t3}}>Tape un titre et lance la recherche.</div>}
+          {results.map((r,i) => {
+            const isSel = selected.has(i);
+            return (
+              <div key={i} className="flex gap-3 p-3 rounded-xl cursor-pointer transition-all"
+                style={isSel?{borderColor:catObj.color,background:catLight,border:`1.5px solid ${catObj.color}`}:{border:`1.5px solid ${T.border}`,background:'transparent'}}
+                onClick={()=>toggleSelect(i)}>
+                <div className="flex-shrink-0 self-center">
+                  <div className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
+                    style={isSel?{background:catObj.color,borderColor:catObj.color}:{borderColor:T.border2}}>
+                    {isSel && <span className="text-white text-[11px] font-bold leading-none">✓</span>}
+                  </div>
+                </div>
+                <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center text-xl" style={{background:catLight}}>
+                  {r.cover ? <img src={r.cover} alt="" className="w-full h-full object-cover" onError={e=>{e.target.style.display='none';}} /> : catObj.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-semibold leading-tight" style={{color:T.t1}}>{r.title}</div>
+                  <div className="text-xs mt-0.5" style={{color:T.t3}}>{[r.creator,r.year,r.genre].filter(Boolean).join(' · ')}</div>
+                  {r.description && <div className="text-xs mt-1 line-clamp-2 leading-relaxed" style={{color:T.t2}}>{r.description}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="px-6 py-4 flex items-center justify-between gap-3" style={{borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} className="text-sm transition-colors flex-shrink-0" style={{color:T.t3}}>Fermer</button>
+          <div className="flex gap-2 flex-1 justify-end">
+            {selected.size>0 && (
+              <button onClick={handleAddSelected} className="text-sm font-semibold px-4 py-2 rounded-xl text-white transition-all active:scale-95 flex-shrink-0" style={{background:catObj.color}}>
+                Ajouter la sélection ({selected.size})
+              </button>
+            )}
+            <button onClick={()=>onManual(cat)} className="text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex-shrink-0" style={{background:T.surface2,color:T.t1}}>
+              Saisie manuelle →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── ADD/EDIT MODAL ── */
+function AddEditModal({ open, item, defaultCat, onClose, onSave }) {
+  const dm = useDark();
+  const T  = useT();
+  const blank = { cat:defaultCat||'movie', title:'', creator:'', year:'', cover:'', genre:'', status:'todo', rating:0, note:'' };
+  const [form, setForm] = useState(blank);
+
+  useEffect(() => {
+    if (!open) return;
+    if (item) setForm({ cat:item.cat, title:item.title, creator:item.creator||'', year:item.year||'', cover:item.cover||'', genre:item.genre||'', status:item.status, rating:item.rating||0, note:item.note||'' });
+    else setForm({...blank, cat:defaultCat||'movie'});
+  }, [open, item, defaultCat]);
+
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const handleSave = () => {
+    if (!form.title.trim()) return;
+    onSave({ id:item?.id||uid(), cat:form.cat, title:form.title.trim(), creator:form.creator.trim()||null, year:form.year.trim()||null, cover:form.cover.trim()||null, genre:form.genre.trim()||null, status:form.status, rating:form.status==='done'?(form.rating||0):0, note:form.note.trim()||null, added:item?.added||Date.now() });
+  };
+
+  if (!open) return null;
+  const catObj = CATS[form.cat];
+  const inputStyle = { background:T.surface2, border:`1.5px solid ${T.border}`, color:T.t1, borderRadius:'12px', width:'100%', padding:'9px 12px', fontSize:'0.85rem', transition:'border-color 0.15s' };
+  const labelStyle = { display:'block', fontSize:'10px', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.1em', color:T.t3, marginBottom:'5px' };
+
+  return (
+    <div className="backdrop-in fixed inset-0 z-40 flex items-center justify-center p-4"
+      style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)'}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-in rounded-3xl w-full max-w-md shadow-2xl flex flex-col" style={{maxHeight:'92vh',background:T.surface,border:`1px solid ${T.border}`}}>
+        <div className="p-6 overflow-y-auto flex-1">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-display text-xl font-bold" style={{color:T.t1}}>{item?'Modifier':'Ajouter manuellement'}</h2>
+            <button onClick={onClose} className="text-lg leading-none" style={{color:T.t3}}>✕</button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label style={labelStyle}>Catégorie</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {Object.entries(CATS).map(([k,v]) => (
+                  <button key={k} onClick={()=>set('cat',k)} className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                    style={form.cat===k?{background:v.color,color:'white'}:{background:dm?v.lightDark:v.light,color:v.color}}>
+                    {v.icon} {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div><label style={labelStyle}>Titre *</label><input value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Titre…" style={inputStyle} /></div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+              <div><label style={labelStyle}>{catObj.creator}</label><input value={form.creator} onChange={e=>set('creator',e.target.value)} placeholder="Nom…" style={inputStyle} /></div>
+              <div><label style={labelStyle}>Année</label><input value={form.year} onChange={e=>set('year',e.target.value)} placeholder="2024" style={inputStyle} /></div>
+            </div>
+            <div><label style={labelStyle}>Genre</label><input value={form.genre} onChange={e=>set('genre',e.target.value)} placeholder="Action, RPG, Thriller…" style={inputStyle} /></div>
+            <div><label style={labelStyle}>URL Couverture</label><input value={form.cover} onChange={e=>set('cover',e.target.value)} placeholder="https://…" style={inputStyle} /></div>
+            <div>
+              <label style={labelStyle}>État</label>
+              <div className="flex gap-2 flex-wrap">
+                {Object.entries(STATUSES).map(([k,v]) => (
+                  <button key={k} onClick={()=>set('status',k)} className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
+                    style={form.status===k?{background:v.color,color:'white',borderColor:v.color}:{color:v.color,borderColor:v.color+'50',background:'transparent'}}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {form.status==='done' && (
+              <div><label style={labelStyle}>Note</label><StarRating value={form.rating} onChange={v=>set('rating',v)} size="lg" /></div>
+            )}
+            <div><label style={labelStyle}>Note personnelle</label>
+              <textarea value={form.note} onChange={e=>set('note',e.target.value)} placeholder="Recommandé par… / Contexte…" rows={3}
+                style={{...inputStyle, resize:'vertical', minHeight:'60px'}} />
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-4 flex gap-3 justify-end" style={{borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm transition-all" style={{color:T.t2,border:`1px solid ${T.border}`}}>Annuler</button>
+          <button onClick={handleSave} disabled={!form.title.trim()} className="px-5 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 active:scale-95" style={{background:catObj.color}}>Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── DETAIL MODAL ── */
+function DetailModal({ open, item, onClose, onEdit, onUpdate }) {
+  const dm  = useDark();
+  const T   = useT();
+  if (!open||!item) return null;
+  const cat = CATS[item.cat]||CATS.movie;
+  const st  = STATUSES[item.status]||STATUSES.todo;
+  const catLight = dm ? cat.lightDark : cat.light;
+
+  return (
+    <div className="backdrop-in fixed inset-0 z-40 flex items-center justify-center p-4"
+      style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)'}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-in rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col" style={{maxHeight:'92vh',background:T.surface,border:`1px solid ${T.border}`}}>
+        <div className="relative flex-shrink-0" style={{height:'220px',background:catLight}}>
+          {item.cover ? <img src={item.cover} alt={item.title} className="w-full h-full object-cover" onError={e=>{e.target.style.display='none';}} /> : <div className="w-full h-full flex items-center justify-center text-7xl">{cat.icon}</div>}
+          {item.cover && <div className="cover-gradient absolute inset-0 pointer-events-none" />}
+          <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-sm text-white transition-colors" style={{background:'rgba(0,0,0,0.4)',backdropFilter:'blur(4px)'}}>✕</button>
+          {item.cover && (
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <div className="font-display text-white font-bold text-lg leading-tight">{item.title}</div>
+              {(item.creator||item.year) && <div className="text-white/75 text-xs mt-0.5">{[item.creator,item.year].filter(Boolean).join(' · ')}</div>}
+            </div>
+          )}
+        </div>
+        <div className="overflow-y-auto flex-1 p-5">
+          {!item.cover && (
+            <div className="mb-4">
+              <div className="font-display font-bold text-lg leading-tight" style={{color:T.t1}}>{item.title}</div>
+              {(item.creator||item.year) && <div className="text-sm mt-0.5" style={{color:T.t2}}>{[item.creator,item.year].filter(Boolean).join(' · ')}</div>}
+            </div>
+          )}
+          <div className="flex gap-2 flex-wrap mb-4 mt-2">
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full" style={{background:catLight,color:cat.color}}>{cat.icon} {cat.label}</span>
+            {item.genre && <span className="text-[11px] font-bold px-3 py-1 rounded-full" style={{background:T.surface2,color:T.t2}}>{item.genre}</span>}
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5" style={{background:dm?st.bgDark:st.bg,color:st.color}}>
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{background:st.color}} />{st.label}
+            </span>
+          </div>
+          <div className="text-[11px] mb-4" style={{color:T.t3}}>Ajouté le {new Date(item.added).toLocaleDateString('fr-FR')}</div>
+          {item.status==='done' && (
+            <div className="mb-4 p-4 rounded-2xl" style={{background:dm?'#1F1507':'#FFFBEB',border:'1px solid #FDE68A'}}>
+              <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{color:T.t3}}>Ma note</div>
+              <StarRating value={item.rating||0} onChange={v=>onUpdate({...item,rating:v})} size="lg" />
+            </div>
+          )}
+          <div className="mb-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{color:T.t3}}>Changer l'état</div>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(STATUSES).map(([k,v]) => (
+                <button key={k} onClick={()=>onUpdate({...item,status:k,rating:k==='done'?item.rating:0})}
+                  className="py-2.5 rounded-xl text-xs font-semibold border transition-all active:scale-95"
+                  style={item.status===k?{background:v.color,color:'white',borderColor:v.color}:{color:v.color,borderColor:v.color+'40',background:dm?v.bgDark:v.bg}}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {item.note && (
+            <div className="p-4 rounded-2xl" style={{background:T.surface2,border:`1px solid ${T.border}`}}>
+              <p className="text-xs italic leading-relaxed" style={{color:T.t2}}>{item.note}</p>
+            </div>
+          )}
+        </div>
+        <div className="px-5 pb-5 pt-3 flex gap-3" style={{borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm transition-all" style={{border:`1px solid ${T.border}`,color:T.t2}}>Fermer</button>
+          <button onClick={()=>onEdit(item.id)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95" style={{background:cat.color}}>Modifier</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── APP ── */
+function App() {
+  const [items,      setItems]      = useState([]);
+  const [fCat,       setFCat]       = useState('all');
+  const [fSt,        setFSt]        = useState('all');
+  const [fLetter,    setFLetter]    = useState('all');
+  const [fYear,      setFYear]      = useState('all');
+  const [sort,       setSort]       = useState('added');
+  const [query,      setQuery]      = useState('');
+  const [modal,      setModal]      = useState(null);
+  const [editItem,   setEditItem]   = useState(null);
+  const [detailItem, setDetailItem] = useState(null);
+  const [manualCat,  setManualCat]  = useState('movie');
+  const [toast,      setToast]      = useState({ msg:'', on:false });
+  const [dm,         setDm]         = useState(() => localStorage.getItem('opus-dm')==='1');
+
+  /* dark mode persistence */
+  useEffect(() => {
+    document.body.classList.toggle('dark', dm);
+    localStorage.setItem('opus-dm', dm?'1':'0');
+  }, [dm]);
+
+  /* Escape */
+  useEffect(() => {
+    const h = e => { if (e.key==='Escape') setModal(null); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
+
+  const refresh = useCallback(async () => { const data=await loadItems(); setItems(data); }, []);
+  useEffect(() => { refresh(); }, []);
+
+  const showToast = msg => { setToast({msg,on:true}); setTimeout(()=>setToast(t=>({...t,on:false})),2600); };
+
+  const filtered = useMemo(() => {
+    let list = items.filter(it => {
+      if (fCat!=='all'    && it.cat!==fCat) return false;
+      if (fSt!=='all'     && it.status!==fSt) return false;
+      if (fLetter!=='all' && it.title?.[0]?.toUpperCase()!==fLetter) return false;
+      if (fYear!=='all'   && it.year!==fYear) return false;
+      if (query && !it.title.toLowerCase().includes(query.toLowerCase())) return false;
+      return true;
+    });
+    if (sort==='alpha') list.sort((a,b)=>a.title.localeCompare(b.title,'fr'));
+    else if (sort==='year') list.sort((a,b)=>(b.year||0)-(a.year||0));
+    else list.sort((a,b)=>b.added-a.added);
+    return list;
+  }, [items, fCat, fSt, fLetter, fYear, sort, query]);
+
+  /* lettres et années présentes dans la bibliothèque */
+  const usedLetters = useMemo(() => new Set(items.map(i => i.title?.[0]?.toUpperCase()).filter(Boolean)), [items]);
+  const availableYears = useMemo(() => [...new Set(items.map(i=>i.year).filter(Boolean))].sort((a,b)=>b-a), [items]);
+
+  const stats = useMemo(() => ({ total:items.length, doing:items.filter(i=>i.status==='doing').length, done:items.filter(i=>i.status==='done').length }), [items]);
+
+  const handleAdd     = async item => { await saveNew(item); await refresh(); setModal(null); showToast(`"${item.title}" ajouté !`); };
+  const handleAddMany = async its  => {
+    for (const it of its) await saveNew(it);
+    await refresh();
+    setModal(null);
+    showToast(its.length===1 ? `"${its[0].title}" ajouté !` : `${its.length} œuvres ajoutées !`);
+  };
+  const handleSave    = async item => {
+    if (editItem) { await updateItem(item); showToast('Modifié !'); }
+    else          { await saveNew(item);    showToast(`"${item.title}" ajouté !`); }
+    await refresh(); setModal(null); setEditItem(null);
+  };
+  const handleDelete  = async id => {
+    if (!confirm('Supprimer cette œuvre ?')) return;
+    await deleteItem(id); await refresh(); showToast('Supprimé.');
+  };
+  const handleEdit    = id => { setEditItem(items.find(i=>i.id===id)); setDetailItem(null); setModal('add'); };
+  const handleUpdate  = async updated => { await updateItem(updated); await refresh(); setDetailItem(updated); };
+  const openDetail    = id => { setDetailItem(items.find(i=>i.id===id)); setModal('detail'); };
+  const openManual    = cat => { setManualCat(cat); setEditItem(null); setModal('add'); };
+
+  /* ── EXPORT ── */
+  const handleExport = async () => {
+    if (IS_ELECTRON) {
+      const res = await window.electronAPI.exportJSON();
+      if (res.ok) showToast(`${res.count} œuvres exportées !`);
+      return;
+    }
+    const data = JSON.stringify(items, null, 2);
+    const blob  = new Blob([data], { type: 'application/json' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    const date  = new Date().toISOString().slice(0,10);
+    a.href      = url;
+    a.download  = `opus-backup-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`${items.length} œuvres exportées !`);
+  };
+
+  /* ── IMPORT ── */
+  const importRef = useRef(null);
+  const handleImport = async e => {
+    if (IS_ELECTRON) {
+      const res = await window.electronAPI.importJSON();
+      if (!res.ok) { showToast(res.error || 'Import annulé.'); return; }
+      if (res.count === 0) { showToast('Aucune nouvelle œuvre à importer.'); return; }
+      await refresh();
+      showToast(`${res.count} œuvre${res.count>1?'s':''} importée${res.count>1?'s':''} !`);
+      return;
+    }
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (!Array.isArray(imported)) { showToast('Fichier invalide.'); return; }
+        const existingIds = new Set(items.map(i => i.id));
+        const toAdd = imported.filter(i => i.id && i.title && !existingIds.has(i.id));
+        if (toAdd.length === 0) { showToast('Aucune nouvelle œuvre à importer.'); return; }
+        for (const it of toAdd) await saveNew(it);
+        await refresh();
+        showToast(`${toAdd.length} œuvre${toAdd.length>1?'s':''} importée${toAdd.length>1?'s':''} !`);
+      } catch { showToast('Erreur de lecture du fichier.'); }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <DarkCtx.Provider value={dm}>
+      <div style={{minHeight:'100vh', background:'var(--bg)'}}>
+
+        {/* HEADER */}
+        <header style={{background:'var(--surface)', borderBottom:'1px solid var(--border)'}} className="sticky top-0 z-30">
+          <div className="w-full px-4 h-[124px] flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjAvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvVFIvMjAwMS9SRUMtU1ZHLTIwMDEwOTA0L0RURC9zdmcxMC5kdGQiPgo8c3ZnIHZlcnNpb249IjEuMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMTAyNHB4IiBoZWlnaHQ9IjEwMjRweCIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgcHJlc2VydmVBc3BlY3RSYXRpbz0ieE1pZFlNaWQgbWVldCI+CiA8ZyBmaWxsPSIjZmJmYmZhIj4KICAKICA8cGF0aCBkPSJNMTYxIDUzMy4xIGMwIC0wLjUgLTEuOCAtMS4yIC00IC0xLjYgLTQgLTAuNyAtNCAtMC43IC00IC01LjEgbDAgLTQuNCA3LjUgMCBjNS43IDAgNy41IDAuMyA3LjUgMS40IDAgMC43IDAuOSAxLjYgMi4xIDEuOSAxLjcgMC41IDIgMS4yIDEuNyA0LjQgbC0wLjMgMy44IC01LjIgMC4zIGMtMyAwLjIgLTUuMyAtMC4xIC01LjMgLTAuN3oiLz4KIDwvZz4KIDxnIGZpbGw9IiNmMGYwZWQiPgogIDxwYXRoIGQ9Ik01NTcuNCA3NTkuNiBjLTAuMyAtMC43IC0wLjQgLTMuMyAtMC4yIC01LjcgbDAuMyAtNC40IDYuMSAtMC4zIGM2LjkgLTAuMyA3LjQgMC4yIDcuNCA4LjEgbDAgMy43IC02LjUgMCBjLTQuNyAwIC02LjcgLTAuNCAtNy4xIC0xLjR6Ii8+CiAgPHBhdGggZD0iTTUxMyA3MjEuNSBsMCAtNC41IDUuNSAwIGM1LjQgMCA1LjUgMCA1LjUgMi45IDAgNS4zIC0wLjggNi4xIC02LjEgNi4xIGwtNC45IDAgMCAtNC41eiIvPgogIDxwYXRoIGQ9Ik0zNDUuMyA2MTAuMyBjLTIgLTAuNCAtMi4zIC0xLjEgLTIuMyAtNS4zIDAgLTUuOSAwLjMgLTYgMTIuMSAtNiBsOC45IDAgMCAzLjQgYzAgMy4zIC0wLjIgMy41IC00LjQgNC4xIC0zLjIgMC41IC00LjYgMS4yIC00LjkgMi42IC0wLjUgMS45IC0zLjcgMi4zIC05LjQgMS4yeiIvPgogIDxwYXRoIGQ9Ik02NjguOSA2MDguMyBjLTAuNSAtMS41IC0wLjkgLTQuMSAtMC43IC01LjcgbDAuMyAtMy4xIDEwLjggLTAuMyAxMC43IC0wLjMgMCA2LjEgMCA2IC0xMCAwIGMtMTAgMCAtMTAuMSAwIC0xMS4xIC0yLjd6Ii8+CiAgPHBhdGggZD0iTTY2MC4zIDU4NCBjLTEuMyAtMi4xIC0yLjMgLTUuNSAtMi4zIC03LjQgbDAgLTMuNiA1LjUgMCA1LjUgMCAwIDcuNSAwIDcuNSAtMy4yIDAgYy0yLjggMCAtMy43IC0wLjYgLTUuNSAtNHoiLz4KICA8cGF0aCBkPSJNNjQ0LjQgNTUwLjggYzAuMyAtMi45IDAuNiAtNi4zIDAuNiAtNy42IDAgLTIuMSAwLjQgLTIuMyA0LjggLTIgNC43IDAuMyA0LjcgMC4zIDUgNC4yIDAuMiAyLjEgLTAuMSA0LjMgLTAuNyA0LjkgLTAuNiAwLjYgLTEuMSAxLjkgLTEuMSAyLjggMCAyIC0yIDIuOSAtNi4yIDIuOSBsLTMuMSAwIDAuNyAtNS4yeiIvPgogIDxwYXRoIGQ9Ik0xMDIuMyA1NDguNSBjLTAuMSAtNC43IDAuMiAtNi4zIDEgLTUuOCAwLjkgMC41IDAuOSAwLjMgMCAtMC44IC0wLjkgLTEuMSAtMC45IC01LjkgMC4xIC01LjkgMCAwIDcuOSAtMi43IDE3LjUgLTYgOS42IC0zLjMgMTguMyAtNiAxOS4zIC02IDEgMCAyLjYgLTAuNCAzLjYgLTAuOSA0LjEgLTIuMSA5LjIgLTMuOSA1NC43IC0xOSAyNi40IC04LjggNjAgLTIwLjEgNzQuNyAtMjUuMSAxNC43IC00LjkgMjcuNyAtOSAyOC44IC05IDEuMSAwIDIuOCAtMC41IDMuOCAtMSAyLjMgLTEuNCAxNC43IC01LjkgMzAuNyAtMTEuMSA3LjIgLTIuMyAxNC40IC00LjggMTYgLTUuNSAxLjcgLTAuNiA3LjEgLTIuNCAxMiAtMy44IDUgLTEuNSA5LjcgLTMgMTAuNSAtMy40IDAuOCAtMC41IDguOSAtMy4yIDE4IC02LjEgOS4xIC0zIDE3LjQgLTUuOCAxOC41IC02LjIgOC41IC0zLjUgMjMuNSAtNy45IDI2IC03LjcgMi42IDAuMyAzIDAuOCAzLjMgMy41IDAuMiAyLjMgLTAuMyA0IC0xLjggNS41IC0yLjQgMi42IC01IDguMiAtNSAxMC45IDAgMC45IC0wLjcgMi40IC0xLjUgMy4zIC0wLjggMC44IC0xLjUgMi4xIC0xLjUgMi44IDAgMi40IC0yLjMgMy44IC02LjIgMy44IC0zLjQgMCAtMy44IC0wLjMgLTMuOCAtMi42IDAgLTIuMSAtMC40IC0yLjUgLTEuNyAtMS45IC0xIDAuMyAtNi41IDIuMiAtMTIuMyA0LjEgLTEwLjIgMy40IC0xMy42IDQuNiAtMTcuMiA2LjUgLTEgMC41IC0yLjggMC45IC00LjEgMC45IC0xLjMgMCAtMi43IDAuMyAtMy4xIDAuNyAtMS4xIDEuMSAtOS43IDMuMiAtMTMuMiAzLjMgLTEuOCAwIC0zLjQgMC42IC0zLjcgMS4zIC0wLjIgMC43IC0zLjggMi4zIC03LjggMy42IC00LjEgMS4zIC04LjcgMi45IC0xMC40IDMuNiAtMS42IDAuNyAtMTQuNSA0LjkgLTI4LjUgOS41IC0xNCA0LjUgLTI2LjggOC44IC0yOC41IDkuNSAtMS42IDAuNyAtOC44IDMuMiAtMTYgNS41IC03LjEgMi4zIC0xMy40IDQuNiAtMTQgNSAtMC41IDAuNCAtMi42IDEuMSAtNC41IDEuNCAtMS45IDAuNCAtNS4xIDEuMyAtNyAyIC0xLjkgMC44IC03LjcgMi42IC0xMi44IDQuMiAtNS4xIDEuNSAtOS44IDMuNCAtMTAuNCA0LjEgLTAuNiAwLjcgLTIuMSAxLjMgLTMuMyAxLjMgLTEuMyAwIC0zLjYgMC43IC01LjEgMS41IC0xLjYgMC44IC0zLjYgMS41IC00LjQgMS41IC0xLjUgMCAtMTQuNSA0IC0xOSA1LjggLTEuNCAwLjYgLTUgMS44IC04IDIuNyAtMyAwLjkgLTYuMiAyLjMgLTcgMyAtMC44IDAuNyAtMy4zIDEuNSAtNS42IDEuOSAtMi4yIDAuMyAtNi4zIDEuNCAtOSAyLjUgLTkuNCAzLjYgLTU3LjkgMTkuMSAtNjAgMTkuMSAtMS44IDAgLTIgLTAuNiAtMi4xIC02LjV6IG02Ni4yIC0xOC40IGMxIC0xLjcgLTEuMSAtMi4xIC0zLjEgLTAuNiAtMS44IDEuNCAtMS44IDEuNCAwLjMgMS41IDEuMiAwIDIuNCAtMC40IDIuOCAtMC45eiBtLTguNCAtMi41IGMtMSAtMS4yIC0wLjcgLTEuNSAyLjEgLTEuOSAyLjYgLTAuMyAyLjMgLTAuNCAtMS40IC0wLjUgLTMuNiAtMC4yIC00LjggMC4yIC00LjggMS4yIDAgMC44IDEgMS43IDIuMyAxLjkgMS4yIDAuMiAyLjQgMC41IDIuNiAwLjYgMC4yIDAgLTAuMiAtMC41IC0wLjggLTEuM3oiLz4KICA8cGF0aCBkPSJNNjI3LjcgNTExIGMtMC40IC0xLjUgLTEuNCAtMiAtNC4xIC0yIC0zLjQgMCAtMy42IC0wLjIgLTMuNiAtMy4zIDAgLTQuNyAzLjQgLTcuNyA4LjcgLTcuNyAzLjggMCA0LjMgMC4zIDYuNyA0LjQgMS40IDIuNSAyLjYgNS44IDIuNiA3LjUgMCAzIC0wLjEgMy4xIC00LjkgMy4xIC00IDAgLTUgLTAuMyAtNS40IC0yeiIvPgogIDxwYXRoIGQ9Ik02MTAuMyA0OTguOCBjLTIuMSAtMi42IC0xMy42IC0yMi4zIC0xNC45IC0yNS40IC0wLjggLTEuOCAtMS40IC00LjcgLTEuNCAtNi40IDAgLTIuOSAwLjEgLTMgNSAtMyAzLjkgMCA1LjMgMC40IDYuMiAyIDEgMS41IDIuNCAyIDUuNSAyIDQuOSAwIDYuMyAxLjcgNi4zIDcuNCAwIDMuMiAtMC4zIDMuNiAtMi41IDMuNiAtMS40IDAgLTIuNSAwLjMgLTIuNSAwLjcgMCAwLjMgMS40IDMuNSAzIDcgMS43IDMuNCAzIDcuOSAzIDkuOCAwIDMuMyAtMC4yIDMuNSAtMy40IDMuNSAtMS44IDAgLTMuOCAtMC42IC00LjMgLTEuMnoiLz4KICA8cGF0aCBkPSJNNTgyLjQgNDUxLjIgYy0yLjggLTIgLTUuNiAtOC40IC01LjIgLTEyLjIgMC4zIC0zLjcgMC4yIC00IC0yLjMgLTQgLTIuMiAwIC0zLjMgLTEuMiAtNy4yIC03LjcgLTMuOCAtNi42IC00LjYgLTguOSAtNS4xIC0xNC44IC0wLjQgLTMuOCAtMC4zIC03LjYgMC4yIC04LjMgMC42IC0wLjkgMi41IC0xLjIgNS4zIC0xIDQuMiAwLjMgNC40IDAuNSA0LjcgMy42IDAuMiAxLjcgMC43IDMuMiAxLjMgMy4yIDAuNSAwIDAuOSAxLjMgMC45IDIuOSAwIDEuOSAwLjggMy41IDIuMSA0LjUgMS43IDEuMSAyIDIuMyAxLjkgNS44IC0wLjUgOC41IC0wLjEgMTEuOCAxLjUgMTEuOCAwLjggMCAxLjUgLTAuNyAxLjUgLTEuNiAwIC0xLjQgMC44IC0xLjYgNC42IC0xLjEgMi42IDAuMiA1IDEuMSA1LjUgMS44IDEuNSAyLjQgMS4xIDkuNiAtMC42IDEwLjMgLTAuOSAwLjMgLTEuNSAxLjkgLTEuNSA0LjEgMCAzLjMgLTAuMiAzLjUgLTMuMiAzLjUgLTEuOCAwIC0zLjggLTAuNCAtNC40IC0wLjh6Ii8+CiA8L2c+CiA8ZyBmaWxsPSIjZWJlOGRkIj4KICA8cGF0aCBkPSJNNDY3IDgxMi44IGMwIC0yLjMgMC45IC00IDMuNSAtNi40IGwzLjUgLTMuMiAwIC0zNi43IGMwIC0yMS40IC0wLjQgLTM3LjQgLTEgLTM4LjQgLTAuNyAtMS41IC0xLjggLTEuNyAtNiAtMS4zIGwtNSAwLjUgMCAtMy41IGMwIC0zLjMgMy4yIC03LjggNS41IC03LjggMC41IDAgMy45IC0xLjYgNy42IC0zLjUgNy45IC00LjEgMTIgLTQuNCAxNC45IC0xLjMgMS4xIDEuMiAyIDIuNSAyIDIuOSAwIDAuNCAyLjEgLTAuNCA0LjcgLTEuOCA1LjUgLTMuMiAxNy4yIC00LjIgMjUuMSAtMi4zIDYuMyAxLjUgMTIuNCA2LjYgMTYgMTMuNCAyLjUgNC44IDIuNyA1LjggMi43IDE4LjYgMCAxNS45IC0xLjMgMTkuNyAtOS41IDI4LjQgLTYuOCA3LjIgLTExLjkgOC44IC0yNi45IDguNCBsLTExLjEgLTAuMyAwIDEyIGMwIDE0LjYgMC42IDE1LjkgOCAxNi45IGw1IDAuNyAwIDMuOSAwIDQgLTE5LjUgMCAtMTkuNSAwIDAgLTMuMnogbTQ1LjEgLTQ1LjUgYzguMSAtNC44IDExLjEgLTIyLjEgNS43IC0zMy41IC00LjUgLTkuOCAtMTIuMyAtMTIuNCAtMjAuNiAtNy4xIGwtNC4yIDIuNyAwIDE1LjIgYzAgMTcgMC41IDE4LjUgNy44IDIyLjQgNC42IDIuNCA3LjYgMi41IDExLjMgMC4zeiBtNy40IC00NS4zIGMtMC4zIC0wLjQgMC4xIC0xLjEgMC43IC0xLjMgMC43IC0wLjMgMC4xIC0wLjUgLTEuMyAtMC40IC0yLjkgMC4xIC0zLjUgMi4yIC0wLjcgMi40IDEgMC4xIDEuNiAtMC4yIDEuMyAtMC43eiIvPgogIDxwYXRoIGQ9Ik0zOTQuNSA3NzkgYy0xNC45IC0yIC0yNi4yIC04LjggLTM0IC0yMC41IC01LjIgLTcuOSAtNy42IC0xNS41IC04LjIgLTI2LjYgLTEgLTE3LjUgMyAtMzAuNyAxMi41IC00MC42IDYuMiAtNi40IDExIC05LjYgMTkuNyAtMTIuOSA2IC0yLjMgOSAtMi43IDIxLjEgLTMuMSAxMS40IC0wLjQgMTUuMyAtMC4yIDIwIDEuMiA5IDIuNiAxNC45IDYgMjAuOSAxMi4xIDkuMyA5LjUgMTMuNSAyMS4xIDEzLjUgMzcuNCAwIDE3LjcgLTQuNyAyOC45IC0xNi45IDQwLjEgLTQuMSAzLjggLTcuOSA2LjkgLTguMyA2LjkgLTAuNSAwIC0zLjMgMS4xIC02LjEgMi40IC04LjggNCAtMjEgNS4zIC0zNC4yIDMuNnogbTIwLjkgLTExLjIgYzIuNyAtMC44IDYuMSAtMy4yIDEwLjIgLTcuMyA1LjUgLTUuNCA2LjUgLTcgOC44IC0xNC40IDcuNiAtMjMuOSAtMi43IC01MS44IC0yMS43IC01OC45IC02LjkgLTIuNiAtOS4yIC0yLjcgLTE2LjIgLTAuNyAtMTIuOSAzLjggLTIxLjUgMTguMSAtMjEuNSAzNiAwIDE2LjggOC41IDM0LjcgMTkuNyA0MS42IDcuNyA0LjggMTMuNSA1LjggMjAuNyAzLjd6Ii8+CiAgPHBhdGggZD0iTTU2MS40IDc3Ny4xIGMtMy45IC0xLjggLTcuMSAtNS4yIC04LjkgLTkuNiAtMC40IC0xLjEgLTEuMSAtMTAuNSAtMS40IC0yMSBsLTAuNiAtMTkgLTQuNSAtMC41IGMtNC41IC0wLjUgLTQuNSAtMC41IC00LjggLTQuNiAtMC4zIC0zLjkgLTAuMiAtNC4xIDQgLTUuOSAyLjQgLTEgNi43IC0yLjkgOS43IC00LjIgMy43IC0xLjcgNi44IC0yLjMgMTAgLTIuMSBsNC42IDAuMyAwLjUgMjIgYzAuNiAyNC41IDEuMyAyNy40IDcuMyAzMCAzLjYgMS41IDYuNCAwLjcgMTEuNCAtMy4xIGwzLjMgLTIuNSAwIC0xMy43IGMwIC03LjUgLTAuNCAtMTQuMiAtMC44IC0xNC45IC0wLjQgLTAuNiAtMi41IC0xLjMgLTQuNyAtMS41IC0zLjkgLTAuMyAtNCAtMC40IC00LjMgLTQuNCBsLTAuMyAtNC4xIDkuNiAtNC4yIGM3LjcgLTMuNCAxMC41IC00LjEgMTQuMyAtMy45IGw0LjcgMC4zIDAuNSAyNSBjMC4zIDEzLjggMC43IDI1LjEgMC44IDI1LjIgMC4xIDAuMSAwLjkgMC45IDEuOCAxLjcgMC44IDAuOSAzLjEgMS42IDUgMS42IDMuMiAwIDMuNCAwLjIgMy40IDMuMyAwIDMuMSAtMC40IDMuNSAtOC41IDcuNSAtMTAuOCA1LjMgLTE2LjcgNS44IC0xOS4yIDEuMyBsLTEuNyAtMi44IC01LjQgMi44IGMtNC43IDIuNSAtNi41IDIuOSAtMTMuNiAyLjkgLTUuNyAwIC05LjMgLTAuNiAtMTIuMiAtMS45eiBtNi42IC0xOS44IGMtMC4xIC0zLjYgLTEuNCAtNS4zIC00LjEgLTUuMyAtMy4xIDAgLTQuNSAxLjkgLTMuNSA0LjUgMC41IDEuNSA3LjYgMi4yIDcuNiAwLjh6Ii8+CiAgPHBhdGggZD0iTTYzMi4yIDc3Ny41IGMtNy4xIC0yLjIgLTcuMiAtMi40IC03LjIgLTE1LjEgbDAgLTExLjQgMy44IDAgYzMuNSAwIDQgMC40IDUuOSA0LjMgNS42IDExLjYgMTUuOCAxNy4zIDE5LjMgMTAuNyAxLjcgLTMuMSAtMS4yIC03LjQgLTcuNiAtMTEuMiAtMTkuMSAtMTEuMyAtMjEuNCAtMTQgLTIxLjQgLTI0LjYgMCAtMTAuNyA0LjEgLTE2LjYgMTMuOCAtMTkuNyA2IC0yIDIxIC0xLjcgMjcgMC41IGwzLjMgMS4yIC0wLjMgMTAuNyAtMC4zIDEwLjYgLTMuNyAwLjMgYy0zLjUgMC4zIC0zLjggMC4xIC01LjYgLTQgLTIuOSAtNi42IC05LjggLTExLjggLTExLjcgLTguOCAtMC4zIDAuNiAtMS41IDEgLTIuNiAxIC0xIDAgLTEuOSAwLjYgLTEuOSAxLjQgMCAyLjcgNC40IDYuNCAxMyAxMS4xIDE0LjIgNy43IDE2IDEwLjMgMTYgMjIuOCAwIDcuNCAtMC4zIDguOCAtMi43IDEyLjUgLTEuOCAyLjggLTQuNSA1LjEgLTcuNyA2LjcgLTQuNCAyLjIgLTYuMyAyLjUgLTE1IDIuNCAtNS42IDAgLTEyIC0wLjYgLTE0LjQgLTEuNHoiLz4KICA8cGF0aCBkPSJNMzI1IDYxMy45IGMwIC0zLjUgLTEuNyAtMC41IDU2LjggLTk5LjkgMjEuNSAtMzYuNCAzOC43IC02NC42IDM5LjYgLTY0LjggMC45IC0wLjIgMS42IC0wLjcgMS42IC0xLjIgMCAtMC45IDMuOSAtMi4zIDUuOCAtMi4xIDAuNiAwLjEgMS4yIC0wLjIgMS4zIC0wLjYgMC40IC00LjcgMyAtMTEuMSA1LjggLTEzLjkgMi40IC0yLjYgMS44IC0zLjYgLTEuNSAtMi40IGwtMi40IDEgMS45IC0zLjggYzEuNSAtMi45IDUyLjEgLTg5LjIgNzEuNiAtMTIyIDIuNCAtNC4xIDIuNyAtNC4zIDYuNyAtNCBsNC4yIDAuMyAyMC4yIDM0LjUgYzExLjIgMTkgMjYuMSA0NC4zIDMzLjEgNTYuMyAxOS41IDMzLjIgMTcuOSAzMSAyNC42IDMyLjcgNS41IDEuNCA1LjcgMS41IDUuNyA0LjcgMCAyLjkgLTAuMyAzLjMgLTIuNSAzLjMgLTEuNCAwIC0yLjUgMC41IC0yLjUgMS4xIDAgMC43IDIuMSA0LjYgNC42IDguOCAxMC42IDE3LjMgMTUuNCAyNi4yIDE1LjQgMjguMSAwIDEuMSAwLjYgMiAxLjMgMiAyLjEgMCAxNS43IDI0IDE1LjcgMjcuOCAwIDIgMC42IDMuNSAxLjUgMy44IDAuOCAwLjQgMS41IDEuMiAxLjUgMS45IDAgMC43IDAuOCAxLjUgMS44IDEuNyAxIDAuMyA1LjEgNi4xIDkuNCAxMy40IDQuMSA3LjEgMTEuMiAxOS4yIDE1LjcgMjYuOSAzMS40IDUzLjIgMzcuMSA2My40IDM3LjEgNjYuNCBsMCAzLjEgLTE4NyAwIC0xODcgMCAwIC0zLjF6IG0yNyAtOC40IGMwLjUgLTEuNCAxLjUgLTIuMyAyLjIgLTIgMC43IDAuMyAyLjcgMC4xIDQuMyAtMC40IDIuNSAtMC44IDEuOSAtMC45IC0zLjcgLTEgLTQuMiAtMC4xIC02LjggMC4zIC02LjggMSAwIDAuNSAtMC40IDAuOCAtMC44IDAuNSAtMC40IC0wLjIgLTAuOCAwLjQgLTAuOCAxLjUgMCAxLjIgMC41IDEuOCAxLjMgMS41IDAuNyAtMC4zIDEuNSAtMC4xIDEuOCAwLjQgMC45IDEuNSAxLjUgMS4yIDIuNSAtMS41eiBtMzM1IC0wLjUgbDAgLTMgLTcuNCAwIGMtNC4xIDAgLTcuNyAwLjMgLTcuOSAwLjggLTAuMyAwLjQgLTAuMSAxLjcgMC40IDMgMC44IDIgMS41IDIuMiA3LjkgMi4yIGw3IDAgMCAtM3ogbS01NC4zIC02LjMgbDM2LjIgLTAuMiAtMi45IC00LjcgYy0yLjEgLTMuNCAtMyAtNiAtMyAtOSAwLjEgLTQuMiAwLjEgLTQuMyAxLjUgLTEuOCAxLjQgMi40IDEuNCAyLjQgMS41IC0yLjIgMCAtNC41IC0wLjIgLTQuOCAtMi42IC00LjggLTIgMCAtMi41IDAuNCAtMiAxLjYgMC40IDEuMiAwIDEuNSAtMS45IDEuMiAtMi4xIC0wLjMgLTYgLTYuMyAtMjYgLTQwLjIgLTEyLjkgLTIyIC0yMy41IC00MSAtMjMuNSAtNDIuMyAwIC0xLjIgLTAuNCAtMi4zIC0xIC0yLjMgLTAuNSAwIC0xIC0wLjggLTEgLTEuOCAwIC0yLjIgLTIuOCAtOC4xIC00LjcgLTEwIC0wLjcgLTAuNyAtMS4zIC0yIC0xLjMgLTIuOCAwIC0wLjggLTAuNyAtMS40IC0xLjUgLTEuNCAtMC45IDAgLTEuOCAtMS4yIC0yLjEgLTMgLTAuNCAtMiAtMS4zIC0zIC0yLjQgLTMgLTEuMiAwIC0zLjggLTMuNCAtNy45IC0xMC4zIC00LjcgLTggLTYuMSAtMTEuMiAtNi4xIC0xNC4zIDAuMSAtMy45IDAuMSAtMy45IDEuNSAtMS40IDAuOCAxLjQgMS41IDIuMSAxLjUgMS41IDAgLTAuNSAwLjUgLTAuMyAxIDAuNSAwLjcgMS4xIDAuOCAwLjYgMC40IC0xLjYgLTAuNSAtMi40IC0wLjEgLTMuNSAxLjMgLTQuNSAyIC0xLjYgMy4xIC00LjUgMS4yIC0zLjMgLTAuOSAwLjUgLTEgMC4yIC0wLjYgLTEgMC41IC0xLjMgMC4zIC0xLjcgLTAuNyAtMS4zIC0wLjggMC4zIC0xLjcgMC4xIC0yIC0wLjYgLTAuMiAtMC43IC0wLjUgLTAuNSAtMC41IDAuNSAtMC4xIDAuOSAtMS4xIDEuOCAtMi4zIDIgLTEuNSAwLjIgLTIuMiAwLjkgLTIuMiAyLjEgMC4xIDEuMiAtMC41IDEuNyAtMi4xIDEuNyAtMS45IDAgLTMgLTEuMyAtNS41IC02LjYgLTEuNyAtMy43IC0zIC03LjggLTIuOCAtOS4zIDAuMyAtMi41IDAuNCAtMi40IDIuNiAxLjYgMS4yIDIuNCAyLjUgNC4zIDIuNyA0LjMgMC4zIDAgLTAuMiAtMS40IC0xIC0zLjEgLTEuNSAtMi44IC0xLjUgLTMuMiAwIC00LjkgMS42IC0xLjcgMS40IC0yLjEgLTIuOCAtNi4zIC00LjIgLTQuMSAtNC4zIC00LjQgLTEuOCAtNCAxLjUgMC4zIDIuMSAwLjEgMS40IC0wLjQgLTAuNiAtMC40IC0xLjMgLTIuMiAtMS41IC0zLjggLTAuMyAtMy4zIC0zLjIgLTQuNiAtNC4yIC0yIC0wLjMgMC45IC0wLjIgMS40IDAuMyAxLjEgMC41IC0wLjMgMC44IDEuNyAwLjcgNC40IC0wLjEgNC40IC0wLjQgNSAtMi4yIDUgLTIgMCAtOC4yIC0xMCAtNDMuMyAtNzAuMiAtNC43IC04LjEgLTguOCAtMTQuOCAtOS4xIC0xNC43IC0wLjMgMCAtNS43IDguOSAtMTIgMTkuNyAtNi4zIDEwLjggLTE4LjUgMzEuNyAtMjcuMSA0Ni4zIC04LjYgMTQuNiAtMTYuNiAyOC4zIC0xNy44IDMwLjUgLTEuMiAyLjEgLTMuNiA2LjMgLTUuNCA5LjIgLTEuOCAyLjkgLTguNiAxNC40IC0xNS4xIDI1LjUgLTYuNiAxMS4xIC0xOC4xIDMwLjYgLTI1LjYgNDMuMiAtMjEuOCAzNi43IC01NCA5MS40IC01NCA5MS43IDAgMC4zIDIyMC4zIC0wLjEgMjc3LjcgLTAuNXogbTE3LjMgLTQ4LjcgYzAgLTEuMSAwLjUgLTIuMiAxLjEgLTIuNSAxLjQgLTAuOSAwLjYgLTIuOCAtMS4zIC0zLjEgLTEuMiAtMC4xIC0xLjcgMC44IC0yIDQuMSAtMC4yIDMuMSAwIDQuMSAxIDMuOCAwLjYgLTAuMyAxLjIgLTEuMyAxLjIgLTIuM3ogbS0xNy40IC00NC4yIGMtMyAtNS4xIC00LjUgLTUuNiAtNy40IC0yLjUgbC0yLjIgMi4zIDIuMyAwLjEgYzQuNyAwLjQgNi45IDEuNCA2LjMgMi44IC0wLjQgMSAwLjEgMS41IDEuNSAxLjUgMS45IDAgMS45IC0wLjEgLTAuNSAtNC4yeiBtLTE4LjcgLTEyLjIgYy0wLjcgLTEuNCAtMS42IC0yLjYgLTIuMSAtMi42IC0wLjUgMCAtMC44IC0wLjYgLTAuNiAtMS4yIDAuMyAtMS43IC0zLjQgLTkuOCAtNC41IC05LjggLTAuNCAwIC0wLjUgLTAuNCAtMC4yIC0xIDAuMyAtMC41IDAgLTEgLTAuNyAtMSAtMC45IDAgLTAuOSAtMC4zIDAuMiAtMSAwLjggLTAuNSAzIC0xIDQuOCAtMSAzLjUgMCAzLjcgLTAuMiAyLjIgLTMuMSAtMC45IC0xLjYgLTMuMSAtMiAtNiAtMC45IC0wLjMgMC4yIC0wLjkgMC4yIC0xLjQgMC4xIC0wLjQgLTAuMSAtMS41IDAuNiAtMi4yIDEuNiAtMS4zIDEuNyAtMS40IDEuNyAtMC43IC0wLjEgMC41IC0xLjUgMC4zIC0xLjcgLTAuOCAtMS4xIC0xLjIgMC44IC0xLjIgMC42IDAgLTAuOCAxLjcgLTIuMSAwIC00LjYgLTIuOSAtNC40IC0xLjcgMC4xIC0xLjcgMC40IC0wLjUgMy4yIDEuMiAzLjEgMTIuOCAyMi43IDE0LjggMjUuMyAxLjYgMiAxLjkgMC43IDAuNiAtMi4yeiBtLTE4Ni45IC00My4xIGMwLjYgLTAuOCAwLjggLTIgMC40IC0yLjYgLTAuNSAtMC45IC0xLjEgLTAuNyAtMi4xIDAuNiAtMi4zIDMuMyAtMC45IDUuMSAxLjcgMnoiLz4KICA8cGF0aCBkPSJNMzYwIDQ2Ny4xIGMwIC0wLjUgMC43IC0xLjEgMS41IC0xLjUgMC44IC0wLjMgMS41IC0xLjIgMS41IC0yLjEgMCAtMS42IDIgLTEuOSA1LjggLTAuOSAyLjUgMC43IDMgMy45IDAuNiA0LjggLTIuNCAwLjkgLTkuNCAwLjcgLTkuNCAtMC4zeiIvPgogPC9nPgogPGcgZmlsbD0iIzI0NjZlMiI+CiAgPHBhdGggZD0iTTkxNy44IDYyNC4xIGMtMC4xIC0wLjUgLTQuMSAtMi41IC04LjggLTQuNCAtMTAuNCAtNC4yIC01MC41IC0yMC45IC01OCAtMjQuMiAtMyAtMS4zIC0yMC4xIC04LjQgLTM4IC0xNS44IC0xNy45IC03LjQgLTUwIC0yMC44IC03MS41IC0yOS43IC0yMS40IC05IC01MC4yIC0yMC45IC02My44IC0yNi42IGwtMjQuOCAtMTAuMyAtNy4xIDEuNSBjLTMuOSAwLjggLTcuMiAxLjMgLTcuMyAxLjIgLTIuNiAtMy4xIC0xOC41IC0zMiAtMTggLTMyLjggMS4zIC0yLjEgOC4zIC0wLjkgMTggMy4xIDUuNSAyLjMgMTIuNSA1LjIgMTUuNSA2LjQgMTQuOSA2LjEgMzUuOCAxNC44IDM4LjUgMTYgMS43IDAuNyA4IDMuMyAxNCA1LjggNi4xIDIuNCAyNC43IDEwLjIgNDEuNSAxNy4yIDE2LjggNyAzNC4zIDE0LjMgMzkgMTYuMiA0LjcgMiAxMSA0LjYgMTQgNS45IDUuNSAyLjMgMjQuNSAxMC4yIDUzIDIyIDguNSAzLjYgMTcuNSA3LjMgMjAgOC40IDguNSAzLjcgMzAuNSAxMi44IDM5IDE2LjIgbDguNSAzLjQgMC4zIDEwLjcgYzAuMyAxMC4xIDAuMiAxMC43IC0xLjcgMTAuNyAtMSAwIC0yLjEgLTAuNCAtMi4zIC0wLjl6Ii8+CiAgPHBhdGggZD0iTTU5OCA0OTEuOSBjLTIxLjQgLTYuNiAtMTIzLjkgLTM3LjMgLTEzMy44IC00MC4xIC0yLjggLTAuOCAtMy4yIC0xLjMgLTMuMiAtNC4yIDAgLTUuNiAyLjYgLTcgMTEuNyAtNi4zIDguNyAwLjYgMzIuMSA0IDM5LjggNS43IDIuOCAwLjYgOC44IDEuOCAxMy41IDIuNiA5LjYgMS43IDIzIDQuNyAzMC42IDYuOSAyLjggMC44IDYgMS41IDcuMiAxLjUgMS4yIDAgMi4yIDAuNSAyLjIgMSAwIDAuNiAyLjYgMSA1LjggMSAzLjEgMCA3LjQgMC41IDkuNSAxLjEgMy4yIDAuOSAzLjcgMS40IDMuNyAzLjkgMCAyLjcgMC40IDMgNi45IDUgNS43IDEuNyA3LjMgMi42IDguOSA1LjMgMSAxLjcgNCA2LjcgNi41IDExIGw0LjcgNy43IC0zLjggLTAuMSBjLTIgMCAtNi42IC0wLjkgLTEwLjIgLTJ6Ii8+CiA8L2c+CiA8ZyBmaWxsPSIjZDI3YjBiIj4KICA8cGF0aCBkPSJNODgyIDUyMC43IGMtNC4zIC0xLjMgLTUgLTIuMiAtNSAtNi45IDAgLTMuNiAwLjEgLTMuNyA0LjQgLTQuMyA0LjYgLTAuNyA2LjkgLTAuMyAxMi40IDIuMSAyLjYgMS4yIDMuMiAyIDMuMiA0LjcgMCAyLjUgLTAuNiAzLjUgLTIuNyA0LjUgLTMuMiAxLjQgLTcuNSAxLjQgLTEyLjMgLTAuMXoiLz4KICA8cGF0aCBkPSJNODI4LjIgNTA2LjIgbC02LjMgLTEuNSAwLjMgLTQuMSBjMC4zIC00IDAuNCAtNC4xIDQuOSAtNSA1LjMgLTEgOS45IC0wLjIgOS45IDEuOCAwIDAuOCAwLjkgMS42IDIgMS45IDEuNiAwLjQgMiAxLjQgMiA0LjYgMCA0IC0wLjEgNC4xIC0zLjIgNCAtMS44IDAgLTYuMSAtMC44IC05LjYgLTEuN3oiLz4KICA8cGF0aCBkPSJNNzg3LjMgNDk1LjMgYy0xLjkgLTAuNCAtMi4zIC0xLjEgLTIuMyAtNC4zIDAgLTIuMSAwLjUgLTQuMiAxLjEgLTQuNiAwLjggLTAuNSAwLjYgLTEgLTAuNSAtMS42IC0xIC0wLjYgLTEuNiAtMi4yIC0xLjYgLTQuMyAwIC0zLjUgMCAtMy41IDQuNiAtMy41IDQuOSAwIDEyIDEuNyAxNC4yIDMuMyAwLjYgMC41IDEuMiAyLjUgMS4yIDQuMyAwIDMuMSAtMC4zIDMuNCAtMyAzLjQgLTIuNCAwIC0zIDAuNCAtMyAyLjEgMCA1LjMgLTIuOSA2LjcgLTEwLjcgNS4yeiIvPgogIDxwYXRoIGQ9Ik03MDEuNiA0NjEuNSBjLTYuNCAtMS43IC05LjYgLTIuMSAtMTEuMyAtMS40IC0zLjggMS40IC02LjMgMS4xIC0xMyAtMS43IC01LjkgLTIuNSAtNi4zIC0yLjkgLTYuMyAtNS45IDAgLTIuMSAwLjYgLTMuNSAxLjYgLTMuOSA0IC0xLjUgMTMuNCAtMC40IDI3LjEgMy40IDguMSAyLjIgMTUuMiA0IDE2IDQgMC45IDAgMS4zIDEuMyAxLjMgNCAwIDMuOSAtMC4xIDQgLTMuMiAzLjkgLTEuOCAwIC03LjMgLTEuMSAtMTIuMiAtMi40eiIvPgogIDxwYXRoIGQ9Ik01OTQuMyA0NDEuMSBjLTQuOCAtOC40IC01IC05LjEgLTMuNCAtMTAuNSAxIC0wLjkgMi44IC0xLjYgNC4yIC0xLjcgMS42IC0wLjEgMSAtMC41IC0yLjEgLTEuNCBsLTQuNSAtMS4zIDcuMyAtMC4xIGM1LjcgLTAuMSAxMC43IDAuOCAyMS45IDMuOSA4LjEgMi4yIDE1LjIgNCAxNiA0IDAuOSAwIDEuMyAxLjMgMS4zIDQgMCAzLjcgLTAuMiA0IC0yLjcgNCAtMS42IDAgLTYuMSAtMC45IC0xMCAtMS45IC03LjIgLTEuOSAtNy4zIC0xLjkgLTcuMyAwIDAgMS4yIC0wLjcgMS45IC0yIDEuOSAtMS4xIDAgLTMgMS4yIC00LjMgMi42IC0yLjEgMi41IC02LjcgNS40IC04LjQgNS40IC0wLjUgMCAtMy4yIC00IC02IC04Ljl6Ii8+CiAgPHBhdGggZD0iTTUyMi44IDQzNy44IGMtMi4zIC0wLjggLTIuOCAtMS42IC0yLjggLTQuNCAwIC0yLjcgMC40IC0zLjQgMiAtMy40IDEgMCAyLjMgLTAuNiAyLjcgLTEuMyAxLjggLTMgMTQuMiAtNS4xIDE0LjQgLTIuNCAwIDAuNiAwLjUgMC4yIDEuMSAtMSAwLjkgLTEuOCAyIC0yLjMgNC44IC0yLjMgMiAwIDguNCAtMC4zIDE0LjEgLTAuNiBsMTAuNCAtMC42IDMuMiA1LjYgYzIuOSA1LjEgMyA1LjYgMS4yIDUuNiAtMS4xIDAgLTEuOSAwLjcgLTEuOSAxLjYgMCAzLjkgLTIuNyA0LjMgLTI1IDQuMyAtMTEuOCAwIC0yMi43IC0wLjUgLTI0LjIgLTEuMXoiLz4KIDwvZz4KIDxnIGZpbGw9IiNjNzcyMDgiPgogIDxwYXRoIGQ9Ik05MDEuNSA1MjUuOSBjLTcuNyAtMi4yIC0xNC4xIC00LjMgLTE0LjMgLTQuOSAtMC4yIC0wLjUgLTEuOSAtMSAtMy43IC0xIC0xLjggMCAtNy41IC0xLjEgLTEyLjYgLTIuNSAtMzAuNiAtOC4xIC0zNS40IC05LjYgLTM2LjEgLTEwLjkgLTEgLTEuOCAtNS4zIC0yLjkgLTEwLjMgLTIuNyAtMi4yIDAuMSAtMTAuNyAtMS43IC0xOSAtNCAtOC4yIC0yLjIgLTE4LjEgLTQuOSAtMjIgLTUuOSAtMy44IC0xIC0xOS44IC01LjMgLTM1LjUgLTkuNSAtMTUuNyAtNC4yIC00MC45IC0xMC45IC01NiAtMTUgLTM4LjEgLTEwLjIgLTQ1LjIgLTEyLjEgLTYzLjYgLTE3LjEgLTEwLjkgLTMgLTE4LjEgLTQuNCAtMjIuMyAtNC40IC0zLjMgMCAtNi4xIC0wLjQgLTYuMSAtMC44IDAgLTAuNSAxLjQgLTEuOCAzIC0zLjEgMS43IC0xLjIgMi44IC0yLjYgMi41IC0zLjEgLTAuMyAtMC41IDEuMSAtMS4yIDMuMiAtMS42IDIuMSAtMC40IDMuMiAtMC45IDIuNSAtMS4xIC0wLjYgLTAuMyAtMC45IC0wLjkgLTAuNiAtMS41IDAuNCAtMC42IC0wLjQgLTIgLTEuNyAtMyAtMiAtMS43IC0yLjEgLTEuOSAtMC40IC0xLjMgNi4xIDIgMjMuNSA2LjIgMjMuNSA1LjYgMCAtMC4zIC01LjEgLTEuOSAtMTEuMyAtMy41IC02LjIgLTEuNSAtMTIuNiAtMy40IC0xNC4yIC00LjEgbC0zIC0xLjMgMy4yIC0wLjEgYzEuOCAtMC4xIDcuMiAxIDEyIDIuNCA0LjggMS40IDExLjcgMyAxNS4yIDMuNSAzLjUgMC41IDE2IDMuNSAyNy43IDYuNyAxNy41IDQuNyAyMS40IDYuMSAyMS40IDcuNiAwIDEuMyAtMC44IDEuNyAtMy4yIDEuNyAtNi4yIDAgLTYuMiAxLjUgMC4xIDQuMiA1LjQgMi4zIDYuMSAyLjQgOC44IDEuMiAyLjYgLTEuMyA0IC0xLjIgMTQuMSAxLjUgNi4yIDEuNiAxMS4yIDIuNiAxMS4yIDIuMiAwIC0wLjQgLTMuMyAtMS41IC03LjIgLTIuNCAtNCAtMSAtMTAgLTIuNiAtMTMuMyAtMy42IC01LjcgLTEuOCAtNS44IC0xLjkgLTIuMyAtMiAyIC0wLjEgNy45IDEgMTMgMi40IDUuMSAxLjQgMTAuNSAyLjUgMTEuOSAyLjUgMS41IDAgOC4zIDEuNSAxNSAzLjQgNi44IDEuOCAyMy4xIDYuMiAzNi4yIDkuNyAxMy45IDMuOCAyMy43IDYuOSAyMy43IDcuNiAwIDAuNyAyLjYgMS40IDYuOCAxLjggMy43IDAuNCAxOS4zIDQuMSAzNC43IDguMiAxNS40IDQuMSAzOC44IDEwLjMgNTIgMTMuOCAxMy4yIDMuNiAyNi45IDcuMyAzMC41IDguMyBsNi41IDEuOSAwLjEgOS4xIDAgOS4yIC0zIC0wLjEgYy0xLjcgLTAuMSAtOS40IC0xLjkgLTE3LjEgLTR6IG0tMTEuMyAtOC45IGMtMC4yIC0wLjggMC40IC0xLjEgMS44IC0wLjcgMyAwLjggMi40IDAgLTEuMiAtMS42IC01LjQgLTIuNCAtNyAtMi44IC02LjIgLTEuNSAwLjUgMC43IC0wLjEgMC45IC0yIDAuNiAtMS40IC0wLjMgLTIuNiAtMC4xIC0yLjYgMC4zIDAgMC41IDAuNSAwLjkgMS4xIDAuOSAwLjUgMCAwLjcgMC41IDAuMyAxLjIgLTAuNCAwLjYgLTAuMyAwLjggMC4zIDAuNSAwLjYgLTAuNCAyLjQgMCAzLjkgMC44IDMuMiAxLjYgNS4xIDEuNCA0LjYgLTAuNXogbS01Mi4yIC0xMy4xIGMwIC0wLjUgLTEuNCAtMS41IC0zLjEgLTIuMSAtMS45IC0wLjcgLTIuNyAtMS4zIC0xLjkgLTEuOCAxLjkgLTEuMiAtMS40IC0yIC00LjYgLTEuMSAtNC43IDEuMiAtMy43IDIuNyAyLjggNC40IDMuNSAwLjggNi40IDEuNiA2LjYgMS42IDAuMSAwLjEgMC4yIC0wLjQgMC4yIC0xeiBtLTQ1IC0xMi45IGMtMC45IC0wLjYgLTAuOCAtMC45IDAuNiAtMS4zIDEgLTAuMyAwLjQgLTAuNSAtMS41IC0wLjQgLTIuMSAwLjEgLTMuNiAwLjggLTMuOCAxLjcgLTAuNCAxLjIgLTAuMiAxLjIgMC41IDAuMiAwLjcgLTEgMS4xIC0xIDIuMiAwLjIgMC43IDAuOSAxLjcgMS4zIDIuMiAxIDAuNiAtMC40IDAuNSAtMC45IC0wLjIgLTEuNHogbTcuMSAtNy4zIGMtMS4yIC0xLjUgLTExLjggLTQuNCAtMTIuNyAtMy40IC0wLjMgMC4zIDAuOCAxLjMgMi41IDIuMiAxLjcgMC44IDMuMSAxLjEgMy4xIDAuNiAwIC0wLjYgMS42IC0wLjQgMy44IDAuNCA0LjcgMS43IDQuNiAxLjcgMy4zIDAuMnoiLz4KICA8cGF0aCBkPSJNNDY4IDQzOS43IGMwIC0yLjYgMC45IC00LjIgNC4zIC03LjQgMy43IC0zLjUgNS41IC00LjMgMTQuNyAtNi43IDEwIC0yLjUgMTEuOSAtMi42IDM1LjMgLTIuNiAyMS4zIDAgMjQuNyAwLjIgMjQuNyAxLjUgMCAwLjggLTAuNiAxLjUgLTEuNCAxLjUgLTEuNyAwIC0yLjkgMi43IC0xLjQgMy4yIDEuOSAwLjcgMCAzLjggLTIuMiAzLjggLTEuMiAwIC0zLjEgLTEuMSAtNC40IC0yLjUgLTIuMSAtMi4zIC0yLjYgLTIuNCAtNS43IC0xLjMgLTEuOSAwLjYgLTMuOCAxLjcgLTQuMiAyLjUgLTAuNCAwLjcgLTEuOCAxLjMgLTMgMS40IC0xLjkgMC4xIC0xLjggMC4yIDAuOCAxLjQgNC4yIDIgMzkuMiAyIDQxLjggMC4xIDIuMSAtMS42IDIuMiAtMi43IDAuMyAtMiAtMS4xIDAuNCAtMS4zIDAgLTAuOSAtMS41IDAuNSAtMiAzLjMgLTMuOCAzLjMgLTIuMSAwIDAuNiAwLjkgMSAyIDEgMS4zIDAgMyAxLjcgNSA0LjggbDIuOSA0LjcgLTguMiAwLjcgYy00LjUgMC40IC0xMi4yIDEuMiAtMTcuMiAxLjcgLTYuMiAwLjggLTE0IDAuOCAtMjQuOCAwLjEgLTguNyAtMC41IC0xOC40IC0wLjggLTIxLjUgLTAuNSAtMy4xIDAuMiAtMTMuNSAwLjcgLTIyLjkgMSBsLTE3LjMgMC41IDAgLTMuM3oiLz4KIDwvZz4KIDxnIGZpbGw9IiNjZDI5MjMiPgogIDxwYXRoIGQ9Ik05MTEuNSA0ODQgYy00LjIgLTEgLTI0LjQgLTUuMiAtNTUuNSAtMTEuNSAtMTQuNiAtMyAtNDUuNCAtOS4zIC02OC41IC0xNCAtNTYuMyAtMTEuNSAtMTM5LjggLTI4LjUgLTE2Ny41IC0zNC4xIC0xOC4yIC0zLjcgLTI0IC00LjUgLTMwLjEgLTQuMSBsLTcuNiAwLjQgLTYuNiAtMTEuMyBjLTMuNiAtNi4yIC02LjMgLTExLjUgLTUuOSAtMTEuOCAxLjUgLTEuNiAxMi40IC0wLjEgMzkuMiA1LjUgMTYuMiAzLjMgNTQuOSAxMS4yIDg2IDE3LjUgMzEuMSA2LjMgNjYuMiAxMy41IDc4IDE1LjkgMTEuOCAyLjQgNDIuNCA4LjcgNjggMTMuOSA1NCAxMSA2OS43IDE0LjIgNzYuMSAxNS43IGw0LjcgMSAwLjEgOSAwLjIgOC45IC0zLjggLTAuMSBjLTIuMSAtMC4xIC01LjEgLTAuNCAtNi44IC0wLjl6Ii8+CiAgPHBhdGggZD0iTTQ0MC44IDQ0NS40IGMxLjUgLTIuNSA0LjEgLTYuOCA1LjkgLTkuNyAxLjggLTIuOSA0LjQgLTcuMyA1LjggLTkuOSAxLjkgLTMuNiAzLjEgLTQuOCA0LjggLTQuOCAxLjMgMCAyLjcgLTAuNCAzLjMgLTAuOSAwLjUgLTAuNSAyLjkgLTEuMiA1LjQgLTEuNCA3LjIgLTAuOSAxNy44IC0zLjEgMTguNiAtNCAwLjQgLTAuNCAyIC0wLjcgMy41IC0wLjcgMS41IDAgMyAtMC40IDMuNCAtMC45IDAuMyAtMC42IDIuNyAtMS4zIDUuMyAtMS43IDIuNiAtMC4zIDUuMiAtMSA1LjcgLTEuNCAwLjYgLTAuNCA0LjggLTEuMyA5LjQgLTEuOSA0LjYgLTAuNyAxMS4xIC0yLjEgMTQuNSAtMy4xIDExLjkgLTMuNiAxOC44IC01IDI0LjUgLTUgbDUuNyAwIDQuNSA3LjcgYzIuNCA0LjIgNC42IDggNC43IDguNSAwLjIgMC40IC0yLjEgMC44IC01LjEgMC44IC00LjEgMCAtNS44IDAuNSAtNy4yIDIgLTEuNCAxLjYgLTMuMSAyIC03LjYgMiAtMy45IDAgLTcgMC42IC05LjMgMiAtMi45IDEuNiAtNi4yIDIgLTE5LjMgMi41IC0xMi4xIDAuNSAtMTguNSAxLjIgLTI3IDMuMiAtMTAuNSAyLjUgLTExLjYgMyAtMTUuNSA3IGwtNC4yIDQuMyAyLjkgMCAzIDAuMSAtMi40IDEuOSBjLTEuMyAxLjEgLTMuMyAyIC00LjYgMiAtMS4yIDAgLTMgMC45IC00IDIgLTEuNiAxLjcgLTMuMSAyIC0xMS4xIDIgLTUuMSAwIC05LjYgMC40IC05LjkgMSAtMC4zIDAuNiAtMS45IDEgLTMuNSAxIGwtMi45IDAgMi43IC00LjZ6Ii8+CiA8L2c+CiA8ZyBmaWxsPSIjMTg5NzQ2Ij4KICA8cGF0aCBkPSJNODk4IDU3MC40IGMtMTAuMiAtMy41IC0yNy43IC05LjUgLTM5IC0xMy4zIC0xMS4zIC0zLjkgLTMzLjggLTExLjUgLTUwIC0xNy4xIC0xNi4yIC01LjYgLTM5LjQgLTEzLjUgLTUxLjUgLTE3LjYgLTEzMi45IC00NS40IC0xMzYuMSAtNDYuNSAtMTM4IC00My40IC0wLjMgMC42IC0xIDEgLTEuNSAxIC0xLjIgMCAtMTUgLTI0LjIgLTE0LjQgLTI1LjIgMC4zIC0wLjQgMy4zIC0wLjggNi43IC0wLjggNS4zIDAgMTMuNSAyLjUgNjMuNiAxOS42IDEyMyA0MS44IDE5MCA2NC43IDE5OS4xIDY3LjkgNS4yIDEuOCAxMy44IDQuNyAxOSA2LjQgNS4yIDEuNyAxNC4xIDQuOCAxOS44IDYuOCBsMTAuMiAzLjYgMCA5LjMgMCA5LjQgLTIuNyAtMC4xIGMtMS42IDAgLTExLjEgLTIuOSAtMjEuMyAtNi41eiIvPgogIDxwYXRoIGQ9Ik01ODAuOSA0NjYuNiBjMSAtMS4yIDAuNiAtMS43IC0yLjYgLTIuNSAtMi4xIC0wLjYgLTYuNCAtMS4xIC05LjUgLTEuMSAtMy4yIDAgLTUuOCAtMC40IC01LjggLTEgMCAtMC41IC0xIC0xIC0yLjIgLTEgLTEuMiAwIC00LjQgLTAuNyAtNy4yIC0xLjUgLTcuNiAtMi4yIC0yMSAtNS4yIC0zMC42IC02LjkgLTQuNyAtMC44IC0xMC43IC0yIC0xMy41IC0yLjYgLTQuOCAtMS4xIC0yNy4xIC00LjUgLTM4LjQgLTUuOCAtNS4yIC0wLjcgLTUuMyAtMC43IC0zLjMgLTIuNSAxLjggLTEuNiA0LjkgLTIgMjUuNyAtMi44IDE0LjIgLTAuNSAyOS40IC0wLjUgMzguMiAwLjEgOC4xIDAuNSAxNS4xIDAuNiAxNS42IDAuMyAwLjUgLTAuMyAxLjIgLTAuMSAxLjYgMC42IDAuNCAwLjYgOC4zIDIuMiAxNy43IDMuNyA5LjMgMS40IDE3IDIuNyAxNyAyLjcgMC44IDAuOSAxMi40IDIwLjYgMTIuNCAyMS4xIDAgMC4zIC0zLjcgMC42IC04LjEgMC42IC03IDAgLTggLTAuMiAtNyAtMS40eiIvPgogPC9nPgogPGcgZmlsbD0iIzE1MTMwYSI+CiAgPHBhdGggZD0iTTIxMC42IDkyMC45IGMtMjcgLTIuOSAtNTAuOCAtMTQuNCAtNzEuMSAtMzQuNCAtMjIuNCAtMjIuMSAtMzMuOSAtNDYuNSAtMzYuNSAtNzcuNSAtMSAtMTIgLTEuNCAtMjUyLjkgLTAuNCAtMjU1LjQgMC4zIC0wLjkgMTEuNSAtNSAyNy4yIC0xMC4xIDE0LjcgLTQuOCAyOC45IC05LjYgMzEuNiAtMTAuNiAyLjcgLTEuMSA2LjggLTIuMiA5IC0yLjUgMi4zIC0wLjQgNC44IC0xLjIgNS42IC0xLjkgMC44IC0wLjcgNCAtMi4xIDcgLTMgMyAtMC45IDYuNiAtMi4xIDggLTIuNyA0LjUgLTEuOCAxNy41IC01LjggMTkgLTUuOCAwLjggMCAyLjggLTAuNyA0LjQgLTEuNSAxLjUgLTAuOCAzLjggLTEuNSA1LjEgLTEuNSAxLjIgMCAyLjcgLTAuNiAzLjMgLTEuMyAwLjYgLTAuNyA1LjMgLTIuNiAxMC40IC00LjEgNS4xIC0xLjYgMTAuOSAtMy40IDEyLjggLTQuMiAxLjkgLTAuNyA1LjEgLTEuNiA3IC0yIDEuOSAtMC4zIDQgLTEgNC41IC0xLjQgMC42IC0wLjQgNi45IC0yLjcgMTQgLTUgNy4yIC0yLjMgMTQuNCAtNC44IDE2IC01LjUgMS43IC0wLjcgMTQuNSAtNSAyOC41IC05LjUgMTQgLTQuNiAyNi45IC04LjggMjguNSAtOS41IDEuNyAtMC43IDkuOCAtMy40IDE4IC02IDguMyAtMi42IDE1LjggLTUuMSAxNi43IC01LjYgMSAtMC41IDIuNyAtMC45IDMuOCAtMC45IDEuMSAwIDIuOCAtMC40IDMuOCAtMC45IDcuNyAtMy45IDMwLjUgLTExLjEgMzUuMiAtMTEuMSBsNC4yIDAgLTIuMiAzLjggYy0zLjggNi4zIC03Ny43IDEzMS43IC04Ny4xIDE0Ny43IGwtOC44IDE1IDkyIDAuMyBjNTAuNSAwLjEgMTMzLjMgMC4xIDE4My44IDAgbDkyIC0wLjMgLTE1LjggLTI3IC0xNS44IC0yNyAwLjMgLTYgYzAuMyAtNS41IDAuMyAtNS43IC0wLjggLTIuNyAtMC42IDEuOCAtMS42IDMuMSAtMi4yIDIuOSAtMC42IC0wLjIgLTMuMiAtMy45IC01LjcgLTguMyAtMi41IC00LjMgLTcuNiAtMTMgLTExLjMgLTE5LjMgLTMuNyAtNi4yIC02LjggLTExLjggLTYuOSAtMTIuNCAtMC4yIC0xIDkuOCAtMy41IDE0LjggLTMuNiAzIC0wLjEgMTEuMyAzLjIgOTIgMzYuOSAyMS41IDguOSA1My42IDIyLjMgNzEuNSAyOS43IDE3LjkgNy40IDM1IDE0LjUgMzggMTUuOCA3LjMgMy4yIDQ3LjIgMTkuOCA1OCAyNC4yIDQuNyAxLjkgOC44IDQgOS4yIDQuNyAxLjIgMS44IDAuOSAxNzcuOSAtMC4zIDE4OS43IC0xLjkgMTkuMiAtNyAzNC45IC0xNi40IDUwLjggLTYuMSAxMC40IC0xNS45IDIyLjUgLTIzLjIgMjguNyAtOCA2LjcgLTIxLjMgMTYuNCAtMjIuNiAxNi40IC0wLjcgMCAtMi41IDAuOCAtNC4yIDEuOCAtNS4yIDMuMiAtMTkuNiA4LjMgLTI5LjUgMTAuNSBsLTkuNSAyLjEgLTI5OC41IDAuMiBjLTE2NC4yIDAuMSAtMzAyIC0wLjIgLTMwNi40IC0wLjd6IG0yOTIuNCAtMTA4LjkgYzAgLTAuNSAtMi4zIC0xLjIgLTUgLTEuNiAtNy43IC0xIC04IC0xLjkgLTggLTIxLjEgMCAtOSAwLjIgLTE2LjMgMC40IC0xNi4zIDAuMiAwIDIgMC43IDMuOSAxLjUgNC44IDIgMTcuMyAxLjkgMjMuNCAtMC4xIDYuMSAtMiAxMy41IC05LjEgMTcuMSAtMTYuNCAyLjQgLTQuOSAyLjcgLTYuNiAyLjcgLTE2IDAgLTkuNSAtMC4zIC0xMSAtMi43IC0xNS42IC0xLjUgLTIuOSAtNC42IC02LjggLTYuOCAtOC43IC05LjQgLTggLTI1LjYgLTcuMiAtMzMuOSAxLjcgLTMuMiAzLjQgLTUuMSAzLjMgLTUuMSAtMC4yIDAgLTEuNiAtMC45IC0zLjggLTIgLTUgbC0yLjEgLTIuMiAtNi44IDMuNSBjLTMuNyAxLjkgLTcuMiAzLjUgLTcuNyAzLjUgLTAuNiAwIC0yLjEgMS4yIC0zLjUgMi43IC0yLjEgMi4zIC0yLjIgMi41IC0wLjQgMS44IDQuOCAtMS45IDcuMiAtMS43IDguOSAwLjYgMS40IDIuMSAxLjYgNyAxLjYgNDIuMiBsMCAzOS45IC0zLjcgMy40IC0zLjcgMy40IDE2LjcgMCBjMTAuMSAwIDE2LjcgLTAuNCAxNi43IC0xeiBtLTg5LjcgLTM2LjEgYzQgLTAuNiA5LjUgLTIuMiAxMi40IC0zLjUgMi44IC0xLjMgNS42IC0yLjQgNi4xIC0yLjQgMi4zIDAgMTYuMSAtMTQuMyAxOSAtMTkuNyAxMC40IC0xOS43IDcuNCAtNDMuNyAtNy4zIC01OC43IC0xMC4yIC0xMC4zIC0yMSAtMTQuMSAtMzcuOSAtMTMuMyAtMTIgMC41IC0yMS4yIDMuMiAtMjkgOC40IC0yOS4xIDE5LjIgLTI4LjQgNjQgMS4zIDgyLjcgNi4yIDQgMTQuNiA2LjMgMjYuOSA3LjUgMC43IDAgNC42IC0wLjQgOC41IC0xeiBtMTY5LjIgLTEuOCBjMi4yIC0xIDUuNCAtMyA3LjEgLTQuNCA0IC0zLjMgNi40IC0zLjUgNi40IC0wLjQgMCAzIDIuNyA2LjcgNC44IDYuNiAwLjkgMCA1LjUgLTIgMTAuMiAtNC40IDguMiAtNC4yIDguNCAtNC40IDQuOCAtNC40IC0yIC0wLjEgLTQuNCAtMC44IC01LjIgLTEuNyAtMC45IC0wLjggLTEuNyAtMS42IC0xLjggLTEuNyAtMC4xIC0wLjEgLTAuNSAtMTEuNCAtMC44IC0yNS4yIC0wLjQgLTIyLjQgLTAuNyAtMjUgLTIuMiAtMjUuMyAtMS45IC0wLjQgLTIwLjggNy43IC0yMC44IDguOSAwIDEuNCAyLjEgMi4yIDMuMiAxLjEgMC42IC0wLjYgMS44IC0wLjggMi43IC0wLjUgMy43IDEuMyA0LjEgMy4zIDQuMSAyMC41IGwwIDE2LjggLTQuMSAzIGMtOCA1LjcgLTE3LjMgNC45IC0yMS40IC0yIC0xLjggLTMuMiAtMiAtNS43IC0yLjUgLTI1LjUgLTAuNiAtMjUuMSAtMC4yIC0yNC4yIC05LjEgLTIwLjIgLTMgMS4zIC03LjMgMy4yIC05LjcgNC4yIC00LjkgMi4xIC01LjEgNC4yIC0wLjMgMy43IDUuNyAtMC42IDYuMSAwLjQgNi4xIDE3LjMgMCAxNy4yIDEgMjQuMyA0LjEgMjguNyA0LjUgNi4zIDE2LjIgOC43IDI0LjQgNC45eiBtNzYuMSAtMC42IGM2LjggLTMuNCAxMC40IC05IDEwLjQgLTE2LjUgMCAtOS4yIC0yLjggLTEyLjQgLTE5IC0yMS4zIC01LjQgLTMuMSAtOCAtNS4yIC05LjQgLTcuOCAtMi4zIC00LjIgLTEuNiAtOC45IDEuMiAtOC45IDEgMCAyLjIgLTAuNCAyLjggLTAuOSAwLjggLTAuOCA1LjEgLTEuNSA4LjEgLTEuMiAyLjQgMC4yIDcuNyA1LjcgOS41IDkuOCAxLjEgMi40IDIuMyA0LjEgMi45IDMuOCAwLjUgLTAuNCAwLjkgLTMuOSAwLjkgLTggbDAgLTcuMyAtMy4yIC0xLjIgYy0xNSAtNS4yIC0zMi4yIDEgLTM0LjQgMTIuNSAtMS41IDguMSAxLjkgMTQgMTEuMiAxOS40IDEyLjUgNy4zIDE1LjUgOS41IDE2LjkgMTIuMiAyLjEgNCAxLjkgOS41IC0wLjUgMTEuOSAtNi41IDYuNSAtMTguMiAwLjggLTI0LjMgLTExLjYgLTEuMSAtMi40IC0yLjUgLTQuNCAtMi45IC00LjQgLTAuNCAwIC0wLjggMy44IC0wLjggOC40IDAgOS40IDAuNCAxMCA3LjIgMTIuMSA3LjQgMi4zIDE3LjYgMS45IDIzLjQgLTF6Ii8+CiAgPHBhdGggZD0iTTQ5Ny44IDc3MCBjLTcuNSAtNCAtNy44IC01IC03LjggLTI1LjQgbDAgLTE4LjEgMy40IC0yLjMgYzEwLjYgLTcuMiAyMi4yIC00LjQgMjcuNCA2LjYgMi40IDUgMi43IDYuOSAyLjcgMTYuMiAwIDkuNCAtMC4zIDExLjEgLTIuNyAxNiAtMS42IDMuMiAtMy45IDYuMiAtNS43IDcuMyAtNCAyLjMgLTEyLjUgMi4yIC0xNy4zIC0wLjN6Ii8+CiAgPHBhdGggZD0iTTM5OC45IDc3MC42IGMtMTYuNyAtNS45IC0yNi45IC0yNC4yIC0yNi45IC00OC4xIDAgLTI2LjEgMTEuNSAtNDAuNSAzMi40IC00MC41IDIxLjEgMCAzNS45IDIwLjEgMzUuOCA0OC41IC0wLjEgOCAtMC42IDExLjcgLTIuNyAxOC40IC0yLjQgNy42IC0zLjMgOS4xIC04LjkgMTQuNiAtNC4xIDQuMSAtNy41IDYuNSAtMTAuMiA3LjMgLTUuMyAxLjYgLTE0LjkgMS41IC0xOS41IC0wLjJ6Ii8+CiAgPHBhdGggZD0iTTg5OS41IDU5OC45IGMtOS4zIC0zLjkgLTE5LjUgLTguMSAtMjIuNSAtOS40IC0zIC0xLjIgLTkuNSAtMy45IC0xNC40IC01LjkgLTQuOSAtMiAtMTcuMyAtNy4yIC0yNy42IC0xMS42IC0xMC4zIC00LjQgLTIyLjUgLTkuNSAtMjcuMSAtMTEuNCAtNC42IC0xLjggLTExLjggLTQuOCAtMTUuOSAtNi41IC00LjEgLTEuOCAtMTAuNiAtNC41IC0xNC41IC02LjEgLTMuOCAtMS41IC0xOC41IC03LjYgLTMyLjUgLTEzLjUgLTE0IC01LjkgLTMxLjYgLTEzLjIgLTM5IC0xNi4yIC03LjQgLTMgLTE0LjggLTYuMSAtMTYuNSAtNi44IC0xLjYgLTAuOCAtOS43IC00LjIgLTE4IC03LjYgLTguMiAtMy40IC0xOC4xIC03LjQgLTIyIC05IC0yMy44IC05LjkgLTI0LjUgLTEwLjIgLTI2IC04LjkgLTAuOSAwLjcgLTEuNyAxLjEgLTEuOCAwLjkgLTMuOSAtNS43IC01LjcgLTkuNCAtNS4zIC0xMC41IDAuNCAtMSAyLjQgLTEuNCA3IC0xLjQgNS42IDAgMTAuNiAxLjQgMzYuMyAxMC4xIDU4IDE5LjYgOTIuOSAzMS41IDE1Mi4zIDUxLjkgMTYuMiA1LjYgMzkuMiAxMy40IDUxIDE3LjQgMTEuOCA0IDI5LjkgMTAuMiA0MC4yIDEzLjcgbDE4LjggNi40IDAgMTMuNiBjMCAxMi45IC0wLjEgMTMuNyAtMi4zIDE1LjcgLTEuMyAxLjIgLTIuNSAyLjIgLTIuOCAyLjIgLTAuMiAwIC04IC0zLjIgLTE3LjQgLTcuMXoiLz4KICA8cGF0aCBkPSJNMzQ5IDYwMS41IGMwIC0wLjQgMzYuOCAtNjMuMSA0OSAtODMuNSA0LjggLTguMSA2LjEgLTkuNSA4LjIgLTkuNSAyLjYgMC4xIDIuOSAtMi4xIDAuNCAtMi43IC0xLjIgLTAuMyAzMC4xIC01NC42IDMzLjkgLTU4LjggMS42IC0xLjggMyAtMiAxMy44IC0yIDEwLjMgMCAxMS44IDAuMiAxMC44IDEuNCAtMSAxLjIgLTAuNiAxLjYgMi4xIDIuNCA2LjMgMS44IDk1LjQgMjguNCAxMDcuOCAzMi4yIDYuOSAyLjEgMTcuNSA1LjMgMjMuNSA3IDYuMSAxLjggMTEuNSAzLjcgMTIuMSA0LjQgMC43IDAuNiAxMy4yIDIxLjYgMjcuOCA0Ni42IDE0LjcgMjUgMjcuMSA0Ni4yIDI3LjYgNDcgMC41IDAuOCAyLjcgNC41IDQuOSA4LjIgMi4zIDMuNiA0LjEgNi45IDQuMSA3LjIgMCAwLjMgLTczLjMgMC42IC0xNjMgMC42IC04OS42IDAgLTE2MyAtMC4yIC0xNjMgLTAuNXoiLz4KICA8cGF0aCBkPSJNODk5LjEgNTU0LjUgYy0xMS44IC00LjEgLTI1LjMgLTguNyAtMzAgLTEwLjQgLTkuNiAtMy4zIC0xMTAuMiAtMzcuNiAtMTk4LjIgLTY3LjUgLTMxLjYgLTEwLjggLTU4LjkgLTE5LjYgLTYwLjUgLTE5LjYgLTEuNyAwIC0zLjUgMC41IC00IDEgLTAuNyAwLjcgLTIuMiAtMC43IC00LjcgLTQuNyAtMy4zIC01LjMgLTMuNCAtNS45IC0yIC03IDMuNSAtMi43IDE0LjggLTEuNSAzMi4yIDMuMiAyNC40IDYuNyA0NC44IDEyLjIgNTEuNiAxNCAxOSA1IDQwLjkgMTAuOCA5MS41IDI0LjUgMzEuMSA4LjMgNjIuMSAxNi43IDY5IDE4LjUgMTMuNSAzLjUgNDcuNSAxMi43IDY2IDE3LjggbDExLjUgMy4yIDAuMyAxNy4zIGMwLjEgOS40IC0wLjEgMTcuMiAtMC41IDE3LjEgLTAuNSAwIC0xMC40IC0zLjQgLTIyLjIgLTcuNHoiLz4KICA8cGF0aCBkPSJNMTAyLjYgNTM2LjkgYy0xIC01LjMgLTAuNyAtMjc2LjIgMC40IC0yOTEuMiAyLjEgLTI5LjIgMTAuMSAtNTMuMSAyNS43IC03Ni41IDYuNSAtOS45IDI1LjEgLTI5IDM2LjQgLTM3LjUgOC4yIC02LjEgMjUuNSAtMTUuNyAyOC40IC0xNS43IDEgMCAyLjYgLTAuNiAzLjQgLTEuMyAyLjcgLTIuMyA5LjkgLTQuNyAxNC4zIC00LjcgMi4zIDAgNC45IC0wLjYgNS43IC0xLjQgMC45IC0wLjggNi4yIC0yLjQgMTEuOCAtMy41IGwxMC4yIC0yLjEgMjc2LjggMC4zIGMzMDkuMyAwLjMgMjc4LjkgLTAuNCAzMDIuMiA3LjMgNDguNCAxNi4xIDg2LjQgNTYuNSA5OC41IDEwNC45IDUuMiAyMC44IDUuMSAxOSA1LjEgMTQxIGwwIDExNCAtMi41IC0wLjMgYy0xLjQgLTAuMiAtMy4xIC0xLjIgLTMuOSAtMi4zIC0xLjEgLTEuNiAtMi42IC0xLjkgLTguNyAtMS45IC03LjQgMCAtMjUuMyAtMy4yIC0yOC42IC01IC0xIC0wLjYgLTMuMSAtMSAtNC43IC0xIC0xLjYgMCAtNC4zIC0wLjMgLTYgLTAuNiAtMi42IC0wLjYgLTMuMSAtMS4xIC0zLjEgLTMuNSAwIC0yLjYgLTAuMyAtMi45IC0zLjUgLTIuOSAtMS45IDAgLTMuNSAwLjQgLTMuNSAxIDAgMi4yIC01LjggMi4xIC0xNi44IC0wLjEgLTYuNSAtMS4zIC0xMS44IC0yLjcgLTEyIC0zLjEgLTAuMiAtMC40IC0xLjYgLTAuOCAtMyAtMC44IC0xLjUgMCAtNy44IC0wLjkgLTEzLjkgLTIuMSBsLTExLjMgLTIuMSAtMC4xIC0zLjIgYy0wLjEgLTIuMyAtMC4zIC0yLjUgLTAuNiAtMC44IC0wLjcgMy41IC0wLjEgMy42IC0yOS4zIC0yLjUgLTExLjggLTIuNCAtMjMgLTQuNyAtMjQuNyAtNSAtMS44IC0wLjMgLTMuMyAtMC45IC0zLjMgLTEuMyAwIC0xLjIgLTMuMyAtMi4yIC0zLjkgLTEuMSAtMC40IDAuNSAtNS4yIC0wLjEgLTEyLjEgLTEuNiAtNi4zIC0xLjMgLTE0IC0yLjkgLTE3IC0zLjUgLTMxLjggLTYgLTQ1LjMgLTkuMSAtNDcuMSAtMTAuOSAtMSAtMSAtMy4yIC0xLjkgLTQuOCAtMS45IC0yIDAgLTMuMiAtMC42IC0zLjUgLTEuOCAtMC42IC0xLjcgLTEuNSAtMS44IC04LjYgLTEuNCAtNC43IDAuMyAtOCAwLjEgLTggLTAuNSAwIC0wLjUgLTIuNSAtMC44IC01LjcgLTAuNSAtNC4zIDAuMiAtMTEuNyAtMC45IC0yNy44IC00LjQgLTI1LjkgLTUuNSAtMjkuMSAtNiAtMzAuOCAtNC41IC0xLjUgMS4xIC0wLjcgMi40IC0zOS4xIC02Mi45IC0xMS4yIC0xOS4xIC0yMC45IC0zNC41IC0yMS43IC0zNC41IC0wLjcgMCAtMyAyLjkgLTUuMSA2LjUgLTIuMSAzLjYgLTE4LjUgMzEuNiAtMzYuNSA2Mi4yIGwtMzIuOCA1NS43IC0xMC41IDMuNiBjLTUuOCAxLjkgLTExLjQgMy45IC0xMi41IDQuNCAtMS4xIDAuNCAtOS40IDMuMiAtMTguNSA2LjIgLTkuMSAyLjkgLTE3LjIgNS42IC0xOCA2LjEgLTAuOCAwLjQgLTUuNSAxLjkgLTEwLjUgMy40IC00LjkgMS40IC0xMC4zIDMuMiAtMTIgMy44IC0xLjYgMC43IC04LjggMy4yIC0xNiA1LjUgLTE2IDUuMiAtMjguNCA5LjcgLTMwLjcgMTEuMSAtMSAwLjUgLTIuNyAxIC0zLjggMSAtMS4xIDAgLTE0LjEgNC4xIC0yOC44IDkgLTE0LjcgNSAtNDguMyAxNi4zIC03NC43IDI1LjEgLTQ1LjUgMTUuMSAtNTAuNiAxNi45IC01NC43IDE5IC0xIDAuNSAtMi42IDAuOSAtMy42IDAuOSAtMSAwIC0xMC4zIDIuOSAtMjAuNyA2LjUgLTEwLjQgMy42IC0xOSA2LjUgLTE5LjEgNi41IC0wLjEgMCAtMC40IC0xLjQgLTAuOCAtMy4xeiIvPgogIDxwYXRoIGQ9Ik05MDUgNTEwLjggYy0xMy43IC00LjEgLTE2LjcgLTQuOSAtMzYuNSAtOS45IC0xMC4xIC0yLjUgLTY4LjIgLTE4IC0xMTIuNSAtMzAgLTEwLjIgLTIuOCAtMjUuMSAtNi44IC0zMy4yIC05IC0zMi4yIC04LjUgLTQ1IC0xMiAtNjEuMyAtMTYuNCAtMTguOSAtNS4yIC00MC44IC0xMSAtNjIgLTE2LjQgLTEzLjEgLTMuNCAtMTQuMSAtMy44IC0xNi4yIC03IC0xLjIgLTEuOCAtMiAtMy43IC0xLjcgLTQuMiAxLjEgLTEuOSAxOS44IC0wLjkgMzEuOSAxLjYgMTQuMyAyLjkgMTkuMyAzLjkgMzAuNSA2LjEgNC43IDAuOSA5IDIuMiA5LjUgMi45IDAuNiAwLjcgMy43IDEuNSA3IDEuOCAxMS41IDEuMSAxNC41IDEuNyA0MS43IDcuMiAxNy42IDMuNiAyNy43IDYuMSAyOC40IDcgMC44IDEuMSAzLjIgMS41IDguNyAxLjUgNS4zIDAgNy42IDAuNCA4IDEuMyAwLjMgMC45IDEuNiAxLjIgMy40IDEgMy43IC0wLjUgMjEuNiAzLjIgMjIuMSA0LjYgMC4yIDAuNiAyLjggMS4xIDUuNyAxLjEgMi45IDAgMTAuNyAxLjIgMTcuMiAyLjYgMTIuNSAyLjggMjYgNS4zIDI4LjEgNS40IDAuNiAwIDEuMiAwLjcgMS4yIDEuNSAwIDEuMiAxLjEgMS41IDUuMyAxLjQgNiAtMC4yIDUyLjcgOC44IDU0LjIgMTAuNSAwLjYgMC42IDMuOSAxLjIgNy41IDEuMyAzLjUgMC4xIDYuNiAwLjcgNi44IDEuMiAwLjIgMC42IDIuNCAxLjEgNC44IDEuMSAyLjQgMCA0LjQgMC41IDQuNCAxIDAgMC42IDAuOSAxIDEuOSAxIDEuMSAwIDIuMyAwLjUgMi42IDEgMC4zIDAuNiAxLjUgMSAyLjUgMSAxIDAgMi41IDAuNyAzLjQgMS41IDAuOCAwLjggMS45IDEuNSAyLjUgMS41IDAuNyAwIDEuMSA0LjkgMS4xIDE0LjUgMCAxMy4yIC0wLjIgMTQuNSAtMS43IDE0LjQgLTEgMCAtNy45IC0xLjkgLTE1LjMgLTQuMXoiLz4KICA8cGF0aCBkPSJNNTg5LjIgNDczLjEgbC0xMS40IC0zLjYgMi41IC0yLjMgYzIuMSAtMiAzLjMgLTIuMyA4LjcgLTIgbDYuMyAwLjMgMyA1LjMgYzEuNiAyLjkgMi44IDUuNCAyLjYgNS42IC0wLjIgMC4xIC01LjUgLTEuMyAtMTEuNyAtMy4zeiIvPgogIDxwYXRoIGQ9Ik01NjMuNSA0NDYuNyBjLTEwLjQgLTEuNiAtMTkuMiAtMy4xIC0xOS40IC0zLjMgLTAuMiAtMC4yIDAuNCAtMS4zIDEuMyAtMi4zIDEuOSAtMiA2LjEgLTIuNyAyNC4xIC0zLjcgbDkgLTAuNCAzLjcgNi41IGMyLjkgNS4yIDMuMyA2LjUgMiA2LjQgLTAuOSAtMC4xIC0xMC4yIC0xLjUgLTIwLjcgLTMuMnoiLz4KICA8cGF0aCBkPSJNNDUyLjUgNDI2IGMxIC0xLjkgOS4xIC0xNS45IDE4IC0zMSA4LjkgLTE1LjEgMjEuNyAtMzYuNyAyOC4zIC00OCA2LjYgLTExLjMgMTIuNiAtMjAuNSAxMy4zIC0yMC41IDAuNiAwIDUuNSA3LjQgMTAuOSAxNi41IDUuMyA5LjEgMTUuNCAyNi4yIDIyLjQgMzggbDEyLjYgMjEuNSAtNi4yIDAuNiBjLTcuMSAwLjcgLTE1IDIuMiAtMTkuMSAzLjggLTEuNiAwLjYgLTUgMS4xIC03LjcgMS4xIC0zLjggMCAtNSAtMC40IC01LjMgLTEuNyAtMC4zIC0xIC0wLjUgLTAuMyAtMC42IDEuNiBsLTAuMSAzLjQgLTcuNSAtMC42IGMtNi44IC0wLjUgLTcuNSAtMC40IC03LjUgMS4zIDAgMS4zIC0xLjEgMS45IC00LjUgMi40IC0yLjQgMC40IC00LjcgMS4xIC01IDEuNyAtMC40IDAuNSAtMS45IDAuOSAtMy40IDAuOSAtMS41IDAgLTMuMSAwLjMgLTMuNSAwLjcgLTAuOCAwLjggLTExIDMgLTE4LjEgMy45IC0yLjIgMC4zIC00LjkgMC45IC02IDEuNCAtMS4xIDAuNSAtMy4zIDEuMSAtNSAxLjUgLTEuNiAwLjQgLTQuMSAxLjYgLTUuNCAyLjggbC0yLjQgMi4yIDEuOCAtMy41eiIvPgogIDxwYXRoIGQ9Ik01MzUuMyA0MjUuMyBjLTEuNiAtMC42IC0xLjcgLTQuNSAtMC4xIC02LjEgMC43IC0wLjcgMy45IC0xLjIgNy4yIC0xLjIgNC40IDAgNi41IC0wLjUgOCAtMS45IDEuNyAtMS41IDMuMyAtMS43IDguNiAtMS40IGw2LjUgMC41IDIuNyA0LjggMi42IDQuNyAtOSAwLjcgYy0xMC40IDAuNyAtMjQuNyAwLjcgLTI2LjUgLTAuMXoiLz4KIDwvZz4KIDxnIGZpbGw9IiMxOTExMDgiPgogIDxwYXRoIGQ9Ik04NjQgODgzIGMwIC0yLjcgMC4zIC0zIDMgLTMgMy4zIDAgNCAyLjEgMS42IDQuNiAtMi41IDIuNCAtNC42IDEuNyAtNC42IC0xLjZ6Ii8+CiAgPHBhdGggZD0iTTQ5MS43IDgwNC45IGMtMS4xIC0zLjkgLTAuOCAtNC45IDEuMyAtNC45IDIuMyAwIDIuNyAyLjcgMC43IDUuNSAtMS4zIDEuNyAtMS40IDEuNyAtMiAtMC42eiIvPgogIDxwYXRoIGQ9Ik00MTYuOSA3ODIuOSBjLTAuNiAtMC4zIC0wLjkgLTEuNSAtMC43IC0yLjUgMC4zIC0xLjYgMS40IC0xLjkgOC4xIC0yLjIgbDcuOCAtMC4zIC0wLjMgMi44IGMtMC4zIDIuNyAtMC40IDIuOCAtNy4xIDIuOCAtMy43IDAuMSAtNy4yIC0wLjIgLTcuOCAtMC42eiIvPgogIDxwYXRoIGQ9Ik01MzcuMyA3NjUuNSBjLTIuNyAtMi42IC0yLjEgLTMuNSAyLjQgLTMuNSAzIDAgMy4zIDAuMyAzLjMgMyAwIDMuNyAtMi40IDMuOSAtNS43IDAuNXoiLz4KICA8cGF0aCBkPSJNNjQwLjggNzUyLjggYzIuMiAtMi4yIDEuMiAtMyAtMS41IC0xLjMgbC0yLjggMS44IDEuOSAtMi4xIGMxLjEgLTEuMiAxLjUgLTIuMiAxIC0yLjIgLTAuNSAwIC0wLjMgLTAuNCAwLjUgLTAuOSAxLjkgLTEuMiA2LjEgMC43IDUuNCAyLjUgLTAuMyAwLjggLTAuOSAxLjEgLTEuNCAwLjggLTAuNSAtMC4zIC0wLjYgMC4yIC0wLjMgMSAwLjUgMS4yIDAgMS42IC0xLjcgMS42IC0xLjggMCAtMiAtMC4zIC0xLjEgLTEuMnoiLz4KICA8cGF0aCBkPSJNNDI4LjggNzAyLjkgYy0xLjUgLTEgLTAuMiAtMy45IDEuNyAtMy45IDAuOCAwIDEuNSAwLjQgMS41IDAuOSAwIDAuNSAwLjcgMS42IDEuNSAyLjQgMS4yIDEuMyAxLjEgMS41IC0xLjEgMS4zIC0xLjQgMCAtMy4xIC0wLjQgLTMuNiAtMC43eiIvPgogIDxwYXRoIGQ9Ik04ODYuNCA2MTUuNSBjLTEgLTIuNCAxLjQgLTQuNyAzLjcgLTMuNCAxIDAuNSAxLjkgMC43IDEuOSAwLjQgMCAtMC4zIDAuOSAtMC4xIDIgMC41IDIuNSAxLjMgMS42IDMuNCAtMS4xIDIuNyAtMS4xIC0wLjMgLTEuOSAtMC4xIC0xLjkgMC40IDAgMS41IC00IDEgLTQuNiAtMC42eiIvPgogIDxwYXRoIGQ9Ik0zMjAuNSA2MTEgYy0wLjggLTEuNCAwLjMgLTMgMi4xIC0zIDAuOCAwIDEuNCAwLjUgMS40IDEgMCAwLjYgLTAuNiAxIC0xLjIgMSAtMC45IDAgLTAuOCAwLjQgMC4yIDEgMS4zIDAuOCAxLjMgMSAtMC4yIDEgLTAuOSAwIC0yIC0wLjQgLTIuMyAtMXoiLz4KICA8cGF0aCBkPSJNODY4LjkgNjA2LjQgYy0wLjkgLTAuOCAtNC4xIC0xLjggLTcuMiAtMi4xIC0zLjIgLTAuMyAtNS43IC0wLjkgLTUuNyAtMS40IDAgLTAuNCAtMC43IC0xLjUgLTEuNiAtMi4zIC0xLjQgLTEuNSAtMS4zIC0xLjYgMS4zIC0xLjYgMS42IDAgNS4zIDAuNyA4LjEgMS41IDQgMS4yIDUuMiAyIDUuMiAzLjUgMCAxLjQgMC43IDIgMi4xIDIgMS4xIDAgMS43IDAuNSAxLjQgMSAtMC45IDEuNCAtMS44IDEuMyAtMy42IC0wLjZ6Ii8+CiAgPHBhdGggZD0iTTkxNi44IDYwNiBsLTMuOCAtMS43IDIuOCAtMi42IGM0LjIgLTQgNi4yIC0zLjYgNi4yIDEuMiAwIDIuMiAtMC4zIDQuMiAtMC43IDQuNCAtMC41IDAuMiAtMi41IC0wLjMgLTQuNSAtMS4zeiIvPgogIDxwYXRoIGQ9Ik02NjAgNTkwLjMgYzAgLTAuNyAwLjUgLTEuMyAxIC0xLjMgMC42IDAgMSAtMS41IDEgLTMuNCAwIC00LjkgMS4yIC01LjEgMy43IC0wLjUgMS43IDMgMS44IDMuOSAwLjcgMy45IC0wLjggMCAtMS40IDAuNiAtMS40IDEuMyAwIDAuNiAtMS4xIDEuMiAtMi41IDEuMiAtMS40IDAgLTIuNSAtMC42IC0yLjUgLTEuMnoiLz4KICA8cGF0aCBkPSJNODI3LjMgNTg5LjEgYy01LjUgLTIuMiAtNy4yIC0zLjggLTUgLTQuNyAxLjkgLTAuNyA4LjIgMi45IDkuMSA1LjEgMC4zIDAuOCAwLjQgMS41IDAuMyAxLjQgLTAuMSAtMC4xIC0yLjEgLTAuOSAtNC40IC0xLjh6Ii8+CiAgPHBhdGggZD0iTTgxMi43IDU4Ny4zIGMtMS4zIC0xLjIgLTAuNyAtMy4zIDAuOCAtMy4zIDAuOCAwIDEuNSAwLjkgMS41IDIgMCAyIC0xLjEgMi42IC0yLjMgMS4zeiIvPgogIDxwYXRoIGQ9Ik03ODkuMyA1NzYuMyBjLTAuNyAtMC4zIC0xLjMgLTEuMyAtMS4zIC0yLjMgMCAtMSAtMC45IC0yIC0yLjEgLTIuMyAtMS44IC0wLjUgLTEuOSAtMC44IC0wLjggLTIgMS4xIC0xLjIgMS44IC0xLjEgNC42IDAuNiAxLjggMSAzLjMgMi4yIDMuMyAyLjYgMCAxLjUgLTIuNiAzLjggLTMuNyAzLjR6Ii8+CiAgPHBhdGggZD0iTTg4NC4xIDU2OS45IGMtMS45IC0wLjcgLTIuMSAtMS4yIC0xLjEgLTIuMyAyLjEgLTIuNiA4IC0wLjggOCAyLjMgMCAxLjMgLTMuNiAxLjMgLTYuOSAweiIvPgogIDxwYXRoIGQ9Ik02NzAgNTY0LjIgYzAgLTIuMiAwLjQgLTQuMyAwLjggLTQuNiAxIC0wLjYgMSA3IDAgOCAtMC41IDAuNCAtMC44IC0xLjEgLTAuOCAtMy40eiIvPgogIDxwYXRoIGQ9Ik02NjIuNyA1NTYuOSBjLTMgLTQuNyAtMy4zIC01LjcgLTIuNCAtOC40IDEuMiAtMy41IDIuNCAtNC41IDUuNSAtNC41IDIuMSAwIDIuMiAwLjQgMi4yIDcuOCAwIDEwLjggLTEgMTEuOCAtNS4zIDUuMXoiLz4KICA8cGF0aCBkPSJNNzQ4LjYgNTU3LjkgYy0xLjEgLTEuMSAtMy4xIC0xLjkgLTQuNiAtMS45IC0yLjQgMCAtNiAtMi45IC02IC01IDAgLTEuNiA3LjMgLTAuMSA5LjUgMiAyLjIgMi4xIDUuNSAyLjcgNS41IDEgMCAtMC42IDAuOSAtMC42IDIuMyAwLjEgMS4zIDAuNiAyLjQgMS43IDIuNCAyLjUgMCAxIC0wLjQgMS4xIC0xIDAuNSAtMC43IC0wLjcgLTEuOSAtMC40IC0zLjYgMC44IC0yLjUgMS44IC0yLjcgMS44IC00LjUgMHoiLz4KICA8cGF0aCBkPSJNODEyLjUgNTU5IGMtMC43IC0xLjEgMy41IC0zIDYuNiAtMyAxLjkgMCA0LjkgMi4xIDQuOSAzLjQgMCAxIC0xMC45IDAuNiAtMTEuNSAtMC40eiIvPgogIDxwYXRoIGQ9Ik04MjcuMiA1NTQuNCBjLTEuMSAtMS4yIC0xLjEgLTEuNyAwLjIgLTIuOSAyLjMgLTIuMyAzLjYgLTEuOCAzLjYgMS41IDAgMy4yIC0xLjcgMy45IC0zLjggMS40eiIvPgogIDxwYXRoIGQ9Ik04MzYgNTUyLjUgYzAgLTEuNSAyLjYgLTIgNS40IC0wLjkgMi44IDEuMSAxLjcgMi40IC0xLjkgMi40IC0yLjQgMCAtMy41IC0wLjUgLTMuNSAtMS41eiIvPgogIDxwYXRoIGQ9Ik05MDEuMiA1NTAuMSBjMC40IC0xLjkgNy41IC00LjUgOS43IC0zLjYgMS4zIDAuNSAxIDEuMSAtMS4zIDMgLTMuNCAyLjcgLTguOSAzLjEgLTguNCAwLjZ6Ii8+CiAgPHBhdGggZD0iTTY5My43IDUzNi44IGMtMC44IC0zIDIuMyAtNiA0LjcgLTQuNiAxIDAuNiAyLjYgMC44IDMuNyAwLjUgMSAtMC4zIDEuNyAtMC4xIDEuNCAwLjMgLTAuMyAwLjUgMC4xIDEuMSAwLjcgMS4zIDAuOSAwLjQgMC43IDAuNiAtMC4zIDAuNiAtMC45IDAuMSAtMi40IDEgLTMuNCAyLjEgLTIuNSAyLjcgLTYuMSAyLjYgLTYuOCAtMC4yeiIvPgogIDxwYXRoIGQ9Ik03NTkuOCA1MzYuMiBjLTQgLTEuOSAtNS42IC0zLjIgLTUuNCAtNC40IDAuMyAtMiAxLjYgLTMuNyAxLjYgLTIgMCAwLjYgMSAxLjQgMi4zIDEuOCAxLjIgMC40IDMuNSAxLjcgNSAzIDEuNiAxLjMgMy4zIDIuMiAzLjggMS44IDAuNSAtMC4zIDAuOSAwLjIgMC45IDEgMCAyLjIgLTEuNyAyIC04LjIgLTEuMnoiLz4KICA8cGF0aCBkPSJNODQyLjIgNTMwIGMtNC4yIC0xIC01LjMgLTIgLTIuMSAtMiAxLjMgMC4xIDMuNSAwLjcgNC45IDEuNSAyLjggMS42IDIuMiAxLjcgLTIuOCAwLjV6Ii8+CiAgPHBhdGggZD0iTTg3NiA1MjggbC0yLjUgLTAuNiAyLjggLTAuNiBjMS41IC0wLjMgMyAtMC4yIDMuMiAwLjMgMC44IDEuMiAtMC44IDEuNiAtMy41IDAuOXoiLz4KICA8cGF0aCBkPSJNOTEyLjcgNTI3LjggYy0wLjcgLTAuNCAtMi4yIC0wLjggLTMuNCAtMC44IC0xLjMgMCAtMi4zIC0wLjMgLTIuMyAtMC44IDAgLTAuNCAtMS44IC0wLjcgLTMuOSAtMC43IC0zLjIgMCAtMy43IC0wLjIgLTIuOSAtMS4yIDAuOSAtMS4xIDAuMSAtMS4zIC0zLjggLTEuMyAtOC41IC0wLjEgLTE0LjggLTEuNSAtMTMuOCAtMy4yIDAuNCAtMC42IC0wLjggLTAuNyAtMy4xIC0wLjQgLTIuNSAwLjQgLTMuNCAwLjMgLTMgLTAuNSAwLjUgLTAuNiAwIC0wLjkgLTEuMiAtMC43IC0xLjEgMC4yIC0yLjggLTAuMyAtMy43IC0xLjEgLTAuOSAtMC44IC0zLjcgLTEuNSAtNi4xIC0xLjUgLTIuOCAtMC4xIC00IC0wLjUgLTMuNCAtMS4xIDEuNiAtMS42IDEgLTIuMiAtMS41IC0xLjggLTEuMyAwLjMgLTMuNCAwIC00LjYgLTAuNyAtMS4yIC0wLjYgLTQuNSAtMS40IC03LjMgLTEuNiAtMi45IC0wLjMgLTYuNSAtMC43IC04LjIgLTAuOSAtMS42IC0wLjIgLTMuNCAtMC40IC0zLjggLTAuNCAtMC41IC0wLjEgLTAuNSAtMC42IC0wLjEgLTEuMiAwLjUgLTAuOSAtMC4xIC0xIC0yIC0wLjUgLTIgMC41IC0yLjYgMC4zIC0yLjEgLTAuNSAwLjUgLTAuOCAwLjEgLTAuOSAtMS40IC0wLjQgLTEuMSAwLjMgLTIuNiAwLjMgLTMuMyAtMC4yIC0wLjcgLTAuNCAtMS43IC0wLjggLTIuMyAtMC44IC0xLjcgMCAtMTAuNSAtMy43IC0xMC41IC00LjQgMCAtMC40IC0wLjggLTAuOCAtMS43IC0wLjkgLTIuMiAtMC4yIC00LjQgLTAuNyAtNi4zIC0xLjUgLTAuOCAtMC4zIC00LjUgLTAuOSAtOC4zIC0xLjIgLTMuNyAtMC40IC02LjUgLTEgLTYuMiAtMS41IDAuNyAtMS4xIC01LjEgLTIuNCAtNi42IC0xLjQgLTAuOCAwLjQgLTAuOSAwLjMgLTAuNSAtMC40IDAuNCAtMC43IDAuMiAtMS4zIC0wLjMgLTEuMyAtMC42IC0wLjEgLTEuNSAtMC4zIC0yLjEgLTAuNCAtMC41IC0wLjEgLTIuOCAtMC4zIC00LjkgLTAuNCAtMi4yIDAgLTQuNyAtMC44IC01LjYgLTEuNyAtMC44IC0wLjkgLTMuMyAtMS44IC01LjUgLTIuMSAtMi4yIC0wLjMgLTQgLTEgLTQgLTEuNCAwIC0wLjUgLTEuMSAtMC45IC0yLjQgLTAuOSAtMS40IDAgLTIuOCAtMC41IC0zLjEgLTEgLTAuNiAtMSAtMy40IC0wLjggLTYuNyAwLjUgLTEuMSAwLjQgLTEuOCAwLjMgLTEuOCAtMC40IDAgLTAuNiAtMSAtMS4xIC0yLjIgLTEuMSAtMS4yIDAgLTIuOSAtMC42IC0zLjcgLTEuNCAtMi4yIC0xLjggLTEwLjkgLTQuNiAtMTIuNSAtNCAtMC44IDAuMyAtMS43IDAuMSAtMiAtMC41IC0wLjQgLTAuNiAtMS45IC0wLjggLTMuNSAtMC41IC0xLjggMC40IC0zLjMgMCAtNC40IC0xLjEgLTAuOSAtMC45IC0zLjQgLTEuOCAtNS40IC0xLjkgLTUuMiAtMC40IC0xNS41IC0yLjcgLTE3IC0zLjkgLTAuNyAtMC41IC0xLjggLTAuNSAtMi40IC0wLjEgLTAuOCAwLjQgLTAuOSAwLjMgLTAuNSAtMC40IDAuNSAtMC44IC0wLjYgLTEuMiAtMy40IC0xLjIgLTIuNyAwIC01LjMgLTAuOCAtNy4yIC0yLjEgLTIuNSAtMS44IC0zLjggLTIuMSAtOC41IC0xLjUgLTQuNyAwLjUgLTUuNCAwLjQgLTQuOSAtMC45IDAuNCAtMS4zIC0wLjMgLTEuNyAtMi42IC0xLjUgLTAuMiAwIC0zLjYgLTEuMSAtNy42IC0yLjQgLTQgLTEuNCAtNyAtMi4xIC02LjcgLTEuNSAxLjEgMS43IC0xLjggMC45IC0zLjkgLTEgLTIuOCAtMi42IC0xMC42IC0zLjMgLTEyLjQgLTEuMSAtMC44IDAuOSAtMS4xIDEgLTAuNiAwLjEgMC41IC0xLjEgLTAuNiAtMS4zIC02IC0wLjkgLTUuOCAwLjMgLTYuNiAwLjIgLTYuNiAtMS4zIDAgLTEuMiAwLjYgLTEuNyAxLjkgLTEuNCAxLjEgMC4yIDIuNSAtMC4zIDMuMiAtMS4xIDIuNSAtMyAtOS45IC02LjEgMTQ2LjkgMzYuMSAzMCA4LjEgNjAuMSAxNi4yIDY3IDE4IDYuOSAxLjggMjIgNS44IDMzLjUgOSAxMS42IDMuMSAyNi4xIDcgMzIuMyA4LjcgNi4xIDEuNyAxMS4yIDMuMyAxMS4yIDMuNyAwIDAuOSAtNi44IDAuOCAtOC4zIC0wLjF6Ii8+CiAgPHBhdGggZD0iTTY3NyA1MjcuMSBjMCAtMC41IC0xLjcgLTEuNSAtMy43IC0yLjIgLTIuMSAtMC42IC01LjEgLTEuOSAtNi44IC0yLjcgLTEuNiAtMC45IC00LjkgLTEuNiAtNy4zIC0xLjYgLTQuNCAtMC4xIC01LjQgLTIgLTEgLTIuMiAxLjQgLTAuMSAzLjEgLTAuNSAzLjggLTAuOSAwLjkgLTAuNSAxLjEgLTAuNCAwLjYgMC4zIC0wLjUgMC44IDAuNSAxLjIgMy4yIDEuMiA0LjYgMCAxMi4yIDMuNCAxMi4yIDUuNSAwIDAuOCAwLjUgMS41IDEgMS41IDAuNiAwIDEgMC41IDEgMSAwIDAuNiAtMC43IDEgLTEuNSAxIC0wLjggMCAtMS41IC0wLjQgLTEuNSAtMC45eiIvPgogIDxwYXRoIGQ9Ik03NDUuNSA1MjMgYy0yLjIgLTEgLTUgLTIuNyAtNi4zIC0zLjggbC0yLjQgLTEuOCAzLjQgMC4zIGM3LjkgMC44IDEwLjQgMS4xIDEyLjMgMS42IDEuMSAwLjMgMi4zIDAuNiAyLjYgMC42IDEuNSAwLjIgMC40IDMuMSAtMS4yIDMuMSAtMSAwIC0yLjEgMC41IC0yLjQgMSAtMC44IDEuMyAtMS4yIDEuMiAtNiAtMXoiLz4KICA8cGF0aCBkPSJNODA2IDUxNy41IGMwIC0wLjggMC45IC0xLjUgMiAtMS41IDEuMSAwIDIgMC43IDIgMS41IDAgMC44IC0wLjkgMS41IC0yIDEuNSAtMS4xIDAgLTIgLTAuNyAtMiAtMS41eiIvPgogIDxwYXRoIGQ9Ik03OTEuNSA1MTQgYzAuMyAtMC41IC0wLjMgLTEuMSAtMS4yIC0xLjMgLTEuMiAtMC4zIC0wLjggLTAuNSAwLjkgLTAuNiAzLjMgLTAuMSA0LjYgMS41IDEuOCAyLjIgLTEuMSAwLjMgLTEuOCAwLjEgLTEuNSAtMC4zeiIvPgogIDxwYXRoIGQ9Ik05MTIgNTEyLjkgYy0zLjYgLTEuMSAtMTcuNCAtNC45IC0zMC44IC04LjQgLTM1LjYgLTkuNSAtMzUuNSAtOS40IC0zNC4yIC0xMSAxLjIgLTEuNSA0LjQgLTAuOCAxMy41IDMgMS43IDAuNiA3LjUgMiAxMyAyLjkgMTguNCAzLjIgMjAuNSAzLjcgMjEuNyA1LjUgMC44IDEuMSAzLjMgMi4xIDYuNyAyLjUgMyAwLjQgNy40IDEuNiA5LjcgMi43IDIuNCAxIDUuMiAxLjkgNi4yIDEuOSAxLjEgMCAyLjUgMC43IDMuMiAxLjUgMS43IDIuMSAtMC43IDEuOSAtOSAtMC42eiIvPgogIDxwYXRoIGQ9Ik04MDAgNTExLjYgYzAgLTEuMiAxIC0xLjYgNC4yIC0xLjYgNC43IDAgNC4yIDEuNCAtMC45IDIuNSAtMi42IDAuNSAtMy4zIDAuMyAtMy4zIC0wLjl6Ii8+CiAgPHBhdGggZD0iTTQwMiA1MTEuMyBjMCAtMC45IDUgLTguMiA2LjEgLTguOSAxLjUgLTAuOSAzLjkgMi4zIDMuOSA1LjMgMCAxLjMgMC41IDIuMyAxIDIuMyAwLjYgMCAxIDAuNSAxIDEgMCAwLjYgLTIuNCAxIC02IDAuOSAtMy4zIC0wLjEgLTYgLTAuNCAtNiAtMC42eiIvPgogIDxwYXRoIGQ9Ik02ODQuMiA1MDkuMSBjLTMuNCAtMS42IC01LjEgLTMgLTQuNyAtMy44IDAuMiAtMC44IC0wLjIgLTEuNiAtMSAtMS45IC0xLjEgLTAuNSAtMS4yIC0xLjEgLTAuNCAtMi41IDEuMiAtMi4zIDMuMiAtMi40IDUuMyAtMC4zIDEuOSAxLjkgMS4xIDMuOCAtMS40IDMuMSAtMy44IC0xIC0xLjMgMi44IDIuOCA0LjMgMi4zIDAuOCA0LjQgMiA0LjYgMi43IDAuMyAwLjcgMC40IDEuMiAwLjMgMS4xIC0wLjEgMCAtMi42IC0xLjIgLTUuNSAtMi43eiIvPgogIDxwYXRoIGQ9Ik03MDkuNSA1MDkgYy0wLjMgLTAuNSAtMS41IC0xIC0yLjYgLTEgLTEgMCAtMS45IC0wLjQgLTEuOSAtMSAwIC0wLjUgMC44IC0xIDEuOCAtMSAyLjggMC4xIDcuMSA0IDQuMyA0IC0wLjYgMCAtMS4zIC0wLjQgLTEuNiAtMXoiLz4KICA8cGF0aCBkPSJNNzY5LjcgNTA1LjkgYy0yLjcgLTEuNiAtMS4xIC0yLjggMy4zIC0yLjYgMi41IDAuMSA0IDAuNiA0IDEuNCAwIDAuNyAtMC42IDEuMyAtMS40IDEuMyAtMC44IDAgLTIgMC4yIC0yLjggMC41IC0wLjcgMC4yIC0yLjEgMCAtMy4xIC0wLjZ6Ii8+CiAgPHBhdGggZD0iTTc5OS43IDUwNS4zIGMtMi43IC0yLjcgMS40IC00LjQgNS41IC0yLjIgMS43IDAuOSAxLjggMS4zIDAuNyAyIC0xLjcgMSAtNS4zIDEuMiAtNi4yIDAuMnoiLz4KICA8cGF0aCBkPSJNOTA2IDUwNC45IGMwIC0wLjUgLTAuNCAtMC44IC0wLjkgLTAuNCAtMC41IDAuMyAtMS4yIDAuMSAtMS42IC0wLjUgLTAuNCAtMC42IDAuNiAtMSAyLjQgLTEgMS43IDAgMy4xIDAuNSAzLjEgMS4xIDAgMC41IDAuNSAwLjcgMS4yIDAuMyAwLjcgLTAuNCAwLjggLTAuMyAwLjQgMC40IC0wLjkgMS41IC00LjYgMS42IC00LjYgMC4xeiIvPgogIDxwYXRoIGQ9Ik03NTguNSA1MDIuNSBjLTAuNSAtMC4yIC0yLjIgLTAuNiAtMy43IC0wLjkgLTQuMSAtMC45IC0zLjQgLTIuNiAxIC0yLjYgMi42IDAgNC41IDAuNyA1LjcgMiAxLjcgMS45IDEuNyAyIC0wLjEgMS45IC0xIDAgLTIuMyAtMC4yIC0yLjkgLTAuNHoiLz4KICA8cGF0aCBkPSJNNzQzLjUgNDk3IGMtMC4zIC0wLjUgMC4zIC0xIDEuNCAtMSAxLjEgMCAyLjMgMC41IDIuNiAxIDAuMyAwLjYgLTAuMyAxIC0xLjQgMSAtMS4xIDAgLTIuMyAtMC40IC0yLjYgLTF6Ii8+CiAgPHBhdGggZD0iTTY2Mi43IDQ5Mi45IGMtMiAtMS4xIC0zLjcgLTIuMSAtMy43IC0yLjQgMCAtMC43IDQuMSAwLjQgNS40IDEuNCAwLjYgMC41IDIgMS4xIDMuMSAxLjMgMS42IDAuMyAxLjcgMC41IDAuNSAxIC0wLjkgMC4zIC0zLjIgLTAuMyAtNS4zIC0xLjN6Ii8+CiAgPHBhdGggZD0iTTU5Mi4zIDQ5Mi40IGMtMC43IC0yIDEuMiAtMy4zIDMuOCAtMi43IDIuMiAwLjYgMy42IDIuMyAxLjkgMi4zIC0wLjYgMCAtMC45IDAuNCAtMC42IDAuOCAwLjIgMC40IC0wLjcgMC45IC0yIDEgLTEuNSAwLjEgLTIuNyAtMC41IC0zLjEgLTEuNHoiLz4KICA8cGF0aCBkPSJNOTAxLjcgNDkyLjYgYy0xLjMgLTEgLTEuNSAtMS41IC0wLjUgLTEuOCAyIC0wLjcgNC45IDAuMyA0LjUgMS41IC0wLjUgMS43IC0yIDEuOCAtNCAwLjN6Ii8+CiAgPHBhdGggZD0iTTkxMiA0ODkuNCBjMCAtMi4yIDAuMyAtMi40IDIuMyAtMS45IDEuNyAwLjUgMS45IDAuNCAwLjcgLTAuNCAtMC44IC0wLjYgLTIuNSAtMC44IC0zLjggLTAuNCAtMS42IDAuNCAtMi4yIDAuMSAtMiAtMC44IDAuMiAtMC44IC0wLjcgLTEuNSAtMS45IC0xLjcgLTEuMyAtMC4yIC0yLjMgLTAuOCAtMi4zIC0xLjMgMCAtMC41IC0yIC0wLjkgLTQuNSAtMC45IC0zLjEgMCAtNC41IC0wLjQgLTQuNSAtMS40IDAgLTEuMyAtNC4yIC0xLjQgLTEwIC0wLjEgLTEuNCAwLjMgLTQuMyAwLjIgLTYuNiAtMC4xIC01IC0wLjcgLTUuNiAtMy4xIC0wLjYgLTIuNiAyLjQgMC4zIDMuMyAwLjEgMi44IC0wLjcgLTAuNCAtMC42IC0yLjcgLTEuMSAtNS4xIC0xLjEgLTIuNCAwIC00LjcgLTAuNSAtNS4xIC0xLjEgLTAuOCAtMS40IC01LjYgLTAuMiAtNi43IDEuNyAtMC40IDAuOCAtMS4zIDEuNCAtMS45IDEuNCAtMC43IDAgLTAuNiAtMC41IDAuMSAtMS40IDEgLTEuMiAwLjggLTEuNSAtMS4xIC0xLjkgLTIuMyAtMC40IC0yLjMgLTAuNCAwLjIgLTAuNyAyLjggLTAuMyAtOS45IC0zLjEgLTE0LjMgLTMuMiAtMS44IC0wLjEgLTIuNiAtMC41IC0yLjMgLTEuMyAwLjYgLTEuNyAtNi43IC0yLjYgLTEyLjQgLTEuNSAtMy44IDAuOCAtNi4zIDAuOCAtMTAuMiAwLjEgLTAuNSAwIC0wLjggLTAuNyAtMC44IC0xLjUgMCAtMi4xIC0xMy4zIC00LjYgLTE0LjUgLTIuNiAtMC43IDEuMiAtNi4yIDEuMiAtOSAwIC0xLjEgLTAuNSAtMS43IC0wLjkgLTEuMiAtMS4xIDAuNCAtMC4xIDEuMiAtMC4zIDEuNyAtMC40IDAuNiAtMC4xIDEuMyAtMC40IDEuOCAtMC41IDAuNCAtMC4xIDEuNiAtMC4yIDIuNyAtMC4xIDQuMSAwLjEgLTIuOSAtMS43IC0xMy4xIC0zLjQgLTUuNSAtMSAtMTEuNSAtMS41IC0xMy4yIC0xLjEgLTEuOCAwLjMgLTQuNSAwLjkgLTYuMiAxLjIgLTEuNiAwLjQgLTMgMS4zIC0zIDIgMCAxLjQgLTUgMiAtNi4zIDAuOCAtMC45IC0wLjkgMC40IC0zLjUgMS40IC0yLjggMC41IDAuMyAwLjkgMC4xIDAuOSAtMC41IDAgLTAuNSAwLjggLTEuMiAxLjggLTEuNCAwLjkgLTAuMyAtMS44IC0wLjUgLTYgLTAuNiAtNS4xIC0wLjEgLTcuOCAtMC41IC03LjggLTEuMiAwIC0wLjkgMi42IC0xIDkuMyAtMC42IDUuOSAwLjQgOC42IDAuMiA3LjYgLTAuMyAtMC45IC0wLjYgLTMuOSAtMS4xIC02LjUgLTEuNCAtMi43IC0wLjIgLTUuNyAtMC43IC02LjggLTEuMSAtMS4xIC0wLjUgLTIuNiAtMC4zIC0zLjYgMC4zIC0yIDEuMiAtNiAwLjUgLTcuNiAtMS40IC0wLjcgLTAuOSAtNCAtMS40IC0xMC4yIC0xLjUgLTUgLTAuMSAtOC45IC0wLjYgLTguNiAtMSAwLjMgLTAuNSAxLjEgLTAuNiAxLjcgLTAuMiAwLjcgMC4zIDAuNCAtMC4zIC0wLjYgLTEuNCAtMS4zIC0xLjUgLTMuNSAtMi4yIC04LjYgLTIuNyAtMy43IC0wLjMgLTguOCAtMS4zIC0xMS4yIC0yLjEgLTIuNCAtMC45IC02LjcgLTEuNiAtOS42IC0xLjYgLTIuOSAtMC4xIC02IC0wLjcgLTcgLTEuNSAtMSAtMC43IC0zLjIgLTEuNCAtNSAtMS40IC0xLjcgMCAtMy41IC0wLjUgLTMuOCAtMSAtMC40IC0wLjYgLTEgLTAuOCAtMS41IC0wLjUgLTAuNSAwLjMgLTEuOCAwLjEgLTIuOSAtMC40IC0xLjIgLTAuNyAtMy42IC0wLjggLTYuMyAtMC4zIC0yLjkgMC42IC01LjEgMC40IC02LjggLTAuNSAtMyAtMS41IC02IC0xLjYgLTkuNSAtMC4zIC0xLjcgMC43IC0yLjQgMC43IC0yIDAgMC4zIC0wLjYgLTAuMSAtMSAtMC45IC0xIC0wLjkgMCAtMS41IC0wLjUgLTEuNCAtMS4yIDAuMiAtMC43IC0wLjEgLTEuMyAtMC43IC0xLjMgLTAuNSAtMC4xIC0xLjcgLTAuNCAtMi41IC0wLjcgLTkuNSAtMy4zIC0xNSAtMy44IC0xNSAtMS4zIDAgMS4xIC0xLjEgMS41IC00LjIgMS41IGwtNC4zIC0wLjEgMi43IC0yLjQgMi43IC0yLjQgLTIuNyAtMC41IGMtMy44IC0wLjggLTkgLTEuNSAtMTQuMiAtMi4xIC0yLjUgLTAuMiAtNi4xIC0wLjkgLTggLTEuNSAtNC40IC0xLjMgLTUuMyAtMS4zIC00LjQgMC4xIDAuNCAwLjcgLTAuNCAxIC0yLjIgMC44IC0xLjYgLTAuMiAtMy41IDAgLTQuMiAwLjUgLTAuOSAwLjUgLTEuMiAtMC4xIC0xIC0yLjMgMC40IC01LjQgLTEyLjMgLTcuNyAxOTguMyAzNS40IDIzLjEgNC43IDUzLjkgMTEgNjguNSAxNCAxNC42IDIuOSAzMi4xIDYuNSAzOSA4IDYuOSAxLjQgMTUuMSAzLjEgMTguMyAzLjcgbDUuNyAxLjIgMCAzLjkgYzAgMy43IC0wLjEgMy45IC0yLjUgMy4zIC0xLjggLTAuNSAtMi43IC0wLjIgLTMuMSAwLjkgLTAuNCAwLjggLTEuNSAxLjUgLTIuNSAxLjUgLTEuNCAwIC0xLjkgLTAuNyAtMS45IC0yLjZ6Ii8+CiAgPHBhdGggZD0iTTcyMSA0ODkuNSBjMCAtMSAxIC0xLjUgMy4zIC0xLjUgNC40IDAgNi43IDEuNSAzLjUgMi4zIC00IDEuMSAtNi44IDAuOCAtNi44IC0wLjh6Ii8+CiAgPHBhdGggZD0iTTU1OS42IDQ4Ny4yIGMtMC44IC0wLjggLTAuNyAtMi41IDAuMyAtNC4xIDAuNyAtMS4xIDEuOCAtMC45IDUuOSAxIDIuOCAxLjMgNS4xIDIuNiA1LjIgMi45IDAgMC43IC0xMC43IDAuOSAtMTEuNCAwLjJ6Ii8+CiAgPHBhdGggZD0iTTcwNi41IDQ4NS4xIGMtMi42IC0wLjQgLTMuNiAtMC45IC0yLjcgLTEuNCAxLjYgLTEuMSA5LjIgMC4xIDkuMiAxLjQgMCAxIC0wLjMgMSAtNi41IDB6Ii8+CiAgPHBhdGggZD0iTTYyOCA0ODEgYzAgLTAuNSAwLjkgLTEgMiAtMSAxLjEgMCAyIDAuNSAyIDEgMCAwLjYgLTAuOSAxIC0yIDEgLTEuMSAwIC0yIC0wLjQgLTIgLTF6Ii8+CiAgPHBhdGggZD0iTTcxOC44IDQ4MS4yIGMtMi4yIC0wLjQgLTIuMyAtMS42IC0wLjMgLTMuMiAxLjEgLTAuOSAxLjUgLTAuOSAxLjUgLTAuMSAwIDAuNyAwLjMgMSAwLjggMC44IDAuNCAtMC4zIDEuNSAtMC4xIDIuNSAwLjIgMS43IDAuNiAxLjcgMC44IC0wLjUgMS43IC0xLjIgMC42IC0zLjEgMC44IC00IDAuNnoiLz4KICA8cGF0aCBkPSJNODE2LjcgNDgwLjggYzAuNyAtMS4yIDEwLjEgLTAuOSAxMC44IDAuMyAwLjUgMC43IC0xLjMgMC45IC01LjMgMC43IC0zLjMgLTAuMiAtNS44IC0wLjYgLTUuNSAtMXoiLz4KICA8cGF0aCBkPSJNNzAwLjMgNDc4LjcgYy0yLjMgLTAuNSAtNC40IC0xLjYgLTQuOCAtMi41IC0wLjQgLTEuMiAwLjIgLTEuNCAzLjkgLTAuOSA1LjIgMC43IDkuNyAyLjcgOSAzLjggLTAuNiAxLjEgLTIuNiAxIC04LjEgLTAuNHoiLz4KICA8cGF0aCBkPSJNNTI4LjEgNDc1LjggYy0wLjcgLTIgLTEuNCAtMi4xIC03LjcgLTEuOSBsLTYuOSAwLjIgMi4yIC0yLjEgYzIuMyAtMi4xIDkuMSAtMy4zIDExLjMgLTIgMC42IDAuNCAxIDEuMyAwLjggMiAtMC4yIDAuOCAxIDEuNiAzIDIgMS44IDAuNCAzLjUgMSAzLjggMS4zIDAuMyAwLjMgMiAwLjEgMy44IC0wLjQgMi41IC0wLjcgNC4xIC0wLjQgNy4xIDEuMSBsMy45IDIgLTEwLjIgMCBjLTkuNiAwIC0xMC4zIC0wLjEgLTExLjEgLTIuMnoiLz4KICA8cGF0aCBkPSJNNjc3LjMgNDc0LjkgYy0zLjcgLTEuMyAtMy43IC0yLjkgLTAuMSAtMi45IDIuOCAwIDguNCAyLjYgNi44IDMuMSAtMS44IDAuNiAtNC45IDAuNSAtNi43IC0wLjJ6Ii8+CiAgPHBhdGggZD0iTTkxOS45IDQ3MC42IGMtMC41IC0wLjUgLTE2LjQgLTMuOCAtODEuOSAtMTcuMiAtMjUuNiAtNS4yIC01Ni4yIC0xMS41IC02OCAtMTMuOSAtMTEuOCAtMi40IC00Ni45IC05LjYgLTc4IC0xNS45IC0zMS4xIC02LjMgLTcwLjIgLTE0LjMgLTg2LjkgLTE3LjcgLTI1LjkgLTUuMyAtMzAuNiAtNi4xIC0zMi41IC01IC0xLjMgMC45IC0xIDAuMSAxLjEgLTIgbDMuMiAtMy4yIDYuOCAxLjggYzMuNyAxIDcuMyAyLjIgNy45IDIuNyAxLjIgMC45IDguNSAyLjQgMTguNCAzLjcgMyAwLjMgNi4xIDEgNi43IDEuNCAwLjcgMC40IDIuNSAwLjEgNCAtMC43IDEuNiAtMC45IDIuMSAtMS42IDEuMyAtMS42IC0xLjIgMCAtMS4xIC0wLjQgMC40IC0xLjUgMS40IC0xIDQuNCAtMS41IDkuNSAtMS41IDUuMyAwIDcuMSAwLjMgNi4xIDEgLTAuOCAwLjUgLTIuNSAxIC0zLjcgMSAtMS4zIDAgLTIuMyAwLjUgLTIuMyAxIDAgMC42IC0xLjggMSAtNCAxIC0zIDAgLTQgMC40IC00IDEuNiAwIDEuMyAwLjggMS41IDQuMyAxIDkuMiAtMS4yIDExLjcgLTEuOCAxMS43IC0zLjIgMCAtMS4xIDEuNyAtMS40IDcgLTEuNCAzLjkgMCA3LjIgMCA3LjUgMCAwLjMgMCAwLjUgMC4zIDAuNSAwLjggMCAwLjQgLTIuMyAwLjggLTUuMiAxIC03LjUgMC4zIC05LjggMSAtOS44IDIuOCAwIDEuMyAxLjEgMS40IDcuOSAwLjggNy41IC0wLjYgNy45IC0wLjUgOC42IDEuNSAwLjQgMS41IDEuNSAyLjEgMy42IDIuMSAxLjkgMCAzLjggMC45IDUuMyAyLjUgMS4zIDEuNCAzIDIuNSAzLjggMi41IDAuOCAwIDEuOCAwLjQgMi40IDAuOCAwLjkgMC45IDcuNiAyLjEgMjIuOSA0LjIgNC40IDAuNiAxMS4xIDEuNiAxNC45IDIuMSAzLjggMC41IDcuOCAxLjYgOC45IDIuNCAxLjggMS4yIDIuMiAxLjIgMy4xIDAgMC43IC0wLjkgMy44IC0xLjcgNy43IC0yLjEgNS41IC0wLjUgNi43IC0wLjQgNy4yIDEgMC42IDEuNCAtMC40IDEuNiAtNy4xIDEuNyBsLTcuNyAwIDYuNSAxLjcgYzYuMSAxLjYgNi42IDEuNiA4LjQgMCAxLjcgLTEuNSAyLjEgLTEuNSA1LjIgMCAxLjkgMC44IDMuNCAxLjkgMy40IDIuNCAwIDAuNCAxLjMgMC44IDIuOCAwLjggMS41IDAgMy4yIDAuNCAzLjggMSAxLjQgMS40IDExLjYgMy44IDIxIDQuOSA0LjUgMC42IDguNyAxLjEgOS41IDEuMyAwLjggMC4yIDEuNSAtMC43IDEuNyAtMS45IDAuMyAtMS45IDEgLTIuMyAzLjggLTIuMyAzLjcgMCA0LjMgMSAxLjkgMyAtMS40IDEuMSAtMS40IDEuNSAwLjIgMyAyLjEgMS45IDYuNCAxLjUgNS42IC0wLjYgLTAuMyAtMC44IDAuNSAtMS44IDIuMSAtMi40IDEuNCAtMC41IDIuNiAtMS40IDIuNiAtMiAwIC0wLjYgMi41IC0xIDUuOCAtMSAzLjggMCA1LjIgMC4zIDQuMyAwLjkgLTEuMSAwLjcgLTAuNyAxIDEuNSAxLjQgMi4xIDAuMyAxLjcgMC40IC0xLjYgMC42IC01LjMgMC4yIC04LjMgMS42IC02LjEgMyAwLjkgMC42IDEgMS4xIDAuMiAxLjUgLTAuOCAwLjUgLTAuNiAxLjMgMC42IDIuNCAxLjIgMS4yIDMuNiAxLjcgOC4yIDEuOSA5LjkgMC4yIDE5LjEgMS41IDE4LjUgMi40IC0wLjMgMC41IDAuNiAwLjkgMi4xIDAuOSAxLjQgMCA1LjEgMC45IDguMiAyIDYuOCAyLjQgOS42IDIuNSAxMS43IDAuNSAxIC0xIDMuNSAtMS41IDggLTEuNSAzLjYgMCA2LjggLTAuNCA3LjEgLTEgMC4zIC0wLjUgMS43IC0xIDMuMSAtMSAzLjEgMCAzLjIgMi43IDAuMSAzLjkgLTEuMyAwLjUgLTIuOCAxLjYgLTMuNSAyLjQgLTEgMS4yIC0wLjggMS42IDEgMi4xIDQuMyAxLjEgNS44IDAuNyA1LjggLTEuNSAwIC0yIDAuNCAtMi4xIDQuNyAtMS41IDUuNCAwLjcgOC42IDIuOSA1LjggNCAtMSAwLjMgLTEuNCAwLjIgLTAuOSAtMC41IDAuNCAtMC43IC0wLjMgLTAuOSAtMS43IC0wLjcgLTIuNiAwLjMgLTMgMS44IC0wLjggMi45IDQuNyAyLjIgOS45IDMuMSAyMS40IDMuNiAxMi42IDAuNiAxMy4xIDAuNyAxNS45IDMuNSAxLjggMS45IDIuNSAzLjMgMS45IDMuOSAtMC41IDAuNSAtMS4xIDAuNyAtMS40IDAuNXoiLz4KICA8cGF0aCBkPSJNNzY2IDQ2Ny40IGMwIC0xIDEuMyAtMS40IDQuMiAtMS40IDMuMyAwIDMuOSAwLjMgMyAxLjIgLTEuOCAxLjggLTcuMiAxLjkgLTcuMiAwLjJ6Ii8+CiAgPHBhdGggZD0iTTQ5MS40IDQ1OS4zIGMwLjUgLTEuMyAtMy4xIC0yLjkgLTguNiAtMy45IC0yLjIgLTAuNCAtMy44IC0wLjIgLTMuOCAwLjMgMCAwLjYgLTMuNCAxIC03LjUgMS4xIC02LjUgMCAtNy41IC0wLjIgLTcuNSAtMS43IDAgLTEuMyAwLjggLTEuOCAzIC0xLjkgMS43IDAgMyAwLjIgMyAwLjYgMCAwLjQgNC4yIDAuOCA5LjMgMC44IDcuMiAwLjEgMTEuMSAwLjggMTggMyBsOC44IDIuOSAtNy41IDAgYy01LjQgMCAtNy41IC0wLjMgLTcuMiAtMS4yeiIvPgogIDxwYXRoIGQ9Ik02MzIuMyA0NTkuOCBjMC41IC0xLjcgNiAtMS44IDguMiAtMC4xIDEuNyAxLjEgMS4zIDEuMyAtMy40IDEuMyAtMy44IDAgLTUuMSAtMC40IC00LjggLTEuMnoiLz4KICA8cGF0aCBkPSJNODkyLjIgNDU3LjggYy0yIC0yIC0xLjQgLTIuOCAxLjkgLTIuOCAyLjQgMCAzIDAuNCAyLjcgMS43IC0wLjQgMi4yIC0yLjkgMi44IC00LjYgMS4xeiIvPgogIDxwYXRoIGQ9Ik02MDcuMSA0NTEuNiBjLTIuNCAtMi45IDQuMSAtMi45IDguNCAwLjEgMS44IDEuMiAxLjUgMS4zIC0yLjcgMS4zIC0yLjcgMCAtNSAtMC42IC01LjcgLTEuNHoiLz4KICA8cGF0aCBkPSJNODg4LjIgNDUwLjMgYy0zLjkgLTAuOCAtMS4zIC0yLjMgMy45IC0yLjMgMy42IDAgNC45IDAuNCA0LjcgMS4zIC0wLjUgMS4zIC00LjcgMS44IC04LjYgMXoiLz4KICA8cGF0aCBkPSJNNTY5LjEgNDQ0LjQgYy0xLjggLTAuOCAtMy4xIC0xLjggLTIuOCAtMi4xIDAuOSAtMC44IDEwLjcgMS45IDEwLjEgMi45IC0wLjcgMS4yIC0zLjQgMC45IC03LjMgLTAuOHoiLz4KICA8cGF0aCBkPSJNNjk4IDQ0NS4yIGMwIC0xLjIgMi4zIC0zLjIgMy43IC0zLjIgMC43IDAgMS43IDAuOSAyLjMgMiAxIDEuOCAwLjggMiAtMi41IDIgLTEuOSAwIC0zLjUgLTAuNCAtMy41IC0wLjh6Ii8+CiAgPHBhdGggZD0iTTgxNS40IDQ0My4zIGMwLjcgLTEuMiAtMiAtMS45IC00LjggLTEuNCAtMC41IDAuMSAtMC40IC0wLjUgMC40IC0xLjMgMC43IC0wLjkgMiAtMS42IDMgLTEuNiAyLjIgMCAzLjUgMyAxLjkgNC40IC0wLjkgMC44IC0xIDAuOCAtMC41IC0wLjF6Ii8+CiAgPHBhdGggZD0iTTY3MiA0MzkgYzAgLTAuNiAzLjUgLTEgOC42IC0xIDUuNCAwIDguMyAwLjQgNy45IDEgLTAuMyAwLjYgLTQuMiAxIC04LjYgMSAtNC42IDAgLTcuOSAtMC40IC03LjkgLTF6Ii8+CiAgPHBhdGggZD0iTTYzOC4zIDQzMy4zIGMtMi4xIC0wLjQgLTMuMyAtMi4yIC0xLjUgLTIuNCAwLjQgMCAxLjggLTAuMiAzLjIgLTAuNSAxLjQgLTAuMiAzLjIgMC4xIDQgMC42IDEuMyAwLjkgMS4zIDEuMSAwIDIgLTEuNiAxIC0yIDEgLTUuNyAwLjN6Ii8+CiAgPHBhdGggZD0iTTc2NiA0MzIuNSBjMC44IC0wLjkgMyAtMS41IDUuNiAtMS41IDMuMiAwIDQuNCAwLjQgNC40IDEuNSAwIDEuMiAtMS4zIDEuNSAtNS42IDEuNSAtNC45IDAgLTUuNSAtMC4yIC00LjQgLTEuNXoiLz4KICA8cGF0aCBkPSJNNTEwLjEgNDI0LjUgYzEgLTEgNC42IC0xLjcgMTAuOSAtMi4yIDYuMyAtMC40IDEwLjYgLTEuMiAxMi44IC0yLjUgMy4zIC0xLjggOS44IC0yLjUgOC44IC0wLjkgLTAuMyAwLjUgLTEuNCAwLjcgLTIuNSAwLjQgLTEuMSAtMC4zIC0yLjEgMC4yIC0yLjQgMS4xIC0xIDIuNCA1LjIgMy42IDIwLjMgMy44IDExLjkgMC4xIDEyLjcgMC4yIDYuNSAwLjggLTMuOCAwLjQgLTE4IDAuOCAtMzEuNSAwLjkgLTIxLjcgMC4xIC0yNC4zIC0wLjEgLTIyLjkgLTEuNHoiLz4KICA8cGF0aCBkPSJNNzAzLjEgNDIwLjYgYy0xIC0xLjIgLTAuOCAtMS43IDAuNyAtMi41IDEuOSAtMSA2LjIgLTAuNSA2LjIgMC44IDAgMi44IC01IDQgLTYuOSAxLjd6Ii8+CiAgPHBhdGggZD0iTTcyMCA0MjAuMSBjMCAtMC42IC0xLjYgLTEuMyAtMy41IC0xLjcgLTIuOSAtMC41IC0zLjMgLTAuOSAtMi40IC0yIDEuNSAtMS45IDUuNSAtMS44IDYuMyAwLjEgMC4zIDAuOSAxLjggMS41IDMuNyAxLjUgMiAwIDIuOSAwLjQgMi43IDEuMyAtMC41IDEuNSAtNi44IDIuMyAtNi44IDAuOHoiLz4KICA8cGF0aCBkPSJNNDE2IDQxOCBjMCAtMS43IDAuNyAtMiA1IC0yIDQuMyAwIDUgMC4zIDUgMiAwIDEuNyAtMC43IDIgLTUgMiAtNC4zIDAgLTUgLTAuMyAtNSAtMnoiLz4KICA8cGF0aCBkPSJNNTYyLjkgNDE4LjUgYy0wLjMgLTAuMiAtMy41IC0wLjUgLTcuMiAtMC42IC02LjUgLTAuMiAtNi43IC0wLjMgLTUuMSAtMiAyLjUgLTIuOCAxMy45IC0yLjcgMTUuNCAwIDAuNSAxLjEgMSAyLjIgMSAyLjUgMCAwLjcgLTMuNSAwLjggLTQuMSAwLjF6Ii8+CiAgPHBhdGggZD0iTTY4Ny43IDQxNi45IGMxLjUgLTEuNCA4LjYgLTEuNSA5IC0wLjEgMC40IDEgLTAuOCAxLjMgLTQuNiAxLjEgLTIuOCAtMC4yIC00LjggLTAuNiAtNC40IC0xeiIvPgogIDxwYXRoIGQ9Ik00OTguOSA0MTIuNiBsMi4xIC0yLjMgLTUuNSAtMi4zIGMtNS44IC0yLjQgLTYuNyAtNC4zIC0yLjMgLTQuOCAxLjkgLTAuMiAyLjcgMC4yIDMuMSAxLjkgMC42IDIuMSAxIDIuMiA3LjYgMS41IDMuOSAtMC4zIDcuMSAtMC4zIDcuMSAwLjEgMCAwLjUgMS4xIDAuOCAyLjUgMC44IDMgMCAzLjMgLTEuNSAwLjYgLTIuMiAtMS4xIC0wLjMgLTIuMiAtMS4xIC0yLjUgLTEuOSAtMC40IC0xLjEgMC43IC0xLjQgNS4yIC0xLjQgNS4yIC0wLjEgNS41IC0wLjIgMy44IC0xLjUgLTEuMSAtMC44IC0zLjUgLTEuNSAtNS4zIC0xLjUgLTIuMyAwIC0zLjMgLTAuNSAtMy4zIC0xLjUgMCAtMS4yIDEuNSAtMS41IDcuNSAtMS41IDYgMCA3LjUgMC4zIDcuNSAxLjUgMCAxLjEgMS4yIDEuNSA0LjUgMS41IDMuMyAwIDQuNSAwLjQgNC41IDEuNSAwIDEuMiAyIDEuNSAxMS4zIDEuNyA2LjEgMC4xIDkgMC4zIDYuMiAwLjUgLTUuNCAwLjQgLTE0LjMgMi4zIC0yNC4xIDUuMyAtMy40IDEgLTkuOSAyLjQgLTE0LjUgMy4xIC00LjYgMC42IC04LjggMS41IC05LjQgMS45IC0wLjUgMC40IC0yLjcgMSAtNC45IDEuMyBsLTMuOSAwLjYgMi4yIC0yLjN6IG0zNC4xIC05LjIgYzEuMiAtMS4zIDAuNyAtMS41IC00IC0xLjIgLTMuMSAwLjIgLTUuNSAwLjggLTUuOCAxLjYgLTAuNiAxLjkgOC4yIDEuNiA5LjggLTAuNHoiLz4KICA8cGF0aCBkPSJNNTcxLjYgMzg5LjUgYy0wLjcgLTEuOCAxLjYgLTMgNCAtMi4xIDEuMyAwLjUgMS40IDAuOSAwLjQgMi4xIC0xLjYgMS45IC0zLjYgMS45IC00LjQgMHoiLz4KICA8cGF0aCBkPSJNNTgyLjcgMzkwLjEgYy02LjMgLTEuMyAtNS41IC0yLjIgMS44IC0xLjkgNCAwLjIgNi45IDAuNyA2LjggMS4zIC0wLjMgMS4zIC0zLjggMS41IC04LjYgMC42eiIvPgogPC9nPgo8L3N2Zz4=" alt="Opus" style={{height:'120px',width:'120px',flexShrink:0}} />
+              <span className="hidden sm:block text-xs font-medium" style={{color:'var(--t3)'}}>— carnet culturel</span>
+            </div>
+            <div className="flex items-center gap-4 rounded-xl px-5 py-3 text-sm" style={{background:'var(--surface2)',border:'1px solid var(--border)'}}>
+              <span className="font-bold text-sm" style={{color:'var(--t1)'}}>{stats.total}</span>
+              <span style={{color:'var(--border2)'}}>·</span>
+              <span style={{color:STATUSES.doing.color}}>⬤ {stats.doing} en cours</span>
+              <span style={{color:'var(--border2)'}}>·</span>
+              <span style={{color:STATUSES.done.color}}>⬤ {stats.done} terminés</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Import caché */}
+              <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
+              {/* Export */}
+              <button onClick={handleExport} className="dm-toggle" title="Exporter la bibliothèque">⬆</button>
+              {/* Import */}
+              <button onClick={()=>importRef.current?.click()} className="dm-toggle" title="Importer une bibliothèque">⬇</button>
+              {/* Dark mode toggle */}
+              <button className="dm-toggle" onClick={()=>setDm(d=>!d)} title={dm?'Mode clair':'Mode sombre'}>
+                {dm ? '☀️' : '🌙'}
+              </button>
+              <button onClick={()=>setModal('search')}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl text-base font-semibold transition-all hover:opacity-90 active:scale-95"
+                style={{background:'var(--t1)', color:'var(--bg)'}}>
+                <span className="text-base leading-none">＋</span> Ajouter
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* TOOLBAR */}
+        <div style={{background:'var(--surface)',borderBottom:'1px solid var(--border)'}} className="sticky top-[124px] z-20">
+          {/* Ligne 1 — catégories, états, tri, recherche */}
+          <div className="w-full px-4 py-2.5 flex items-center gap-2 overflow-x-auto">
+            <div className="flex gap-1 rounded-xl p-1 flex-shrink-0" style={{background:'var(--surface2)'}}>
+              {[['all','Tout'], ...Object.entries(CATS).map(([k,v])=>[k,v.icon])].map(([k,lbl]) => (
+                <button key={k} onClick={()=>setFCat(k)}
+                  className="seg-btn px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap"
+                  style={fCat===k ? {background:'var(--surface)',color:k==='all'?'var(--t1)':CATS[k]?.color,boxShadow:'0 1px 3px rgba(0,0,0,0.15)'} : {color:'var(--t3)'}}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 rounded-xl p-1 flex-shrink-0" style={{background:'var(--surface2)'}}>
+              {[['all','Tous'], ...Object.entries(STATUSES).map(([k,v])=>[k,v.label])].map(([k,lbl]) => (
+                <button key={k} onClick={()=>setFSt(k)}
+                  className="seg-btn px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap"
+                  style={fSt===k ? {background:'var(--surface)',color:k==='all'?'var(--t1)':STATUSES[k]?.color,boxShadow:'0 1px 3px rgba(0,0,0,0.15)'} : {color:'var(--t3)'}}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1" />
+            {/* Filtre année */}
+            <select value={fYear} onChange={e=>setFYear(e.target.value)}
+              className="flex-shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium cursor-pointer appearance-none"
+              style={{background:'var(--surface)',border:'1px solid var(--border)',color:fYear!=='all'?'#2563EB':'var(--t1)',fontWeight:fYear!=='all'?'700':'500'}}>
+              <option value="all">Année</option>
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <select value={sort} onChange={e=>setSort(e.target.value)}
+              className="flex-shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium cursor-pointer appearance-none"
+              style={{background:'var(--surface)',border:'1px solid var(--border)',color:'var(--t1)'}}>
+              <option value="added">Récents</option>
+              <option value="alpha">A → Z</option>
+              <option value="year">Année</option>
+            </select>
+            <div className="relative flex-shrink-0">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style={{color:'var(--t3)'}}>⌕</span>
+              <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Filtrer…"
+                className="rounded-xl pl-8 pr-3 py-2.5 text-sm w-44 transition-colors"
+                style={{background:'var(--surface)',border:'1px solid var(--border)',color:'var(--t1)'}} />
+            </div>
+          </div>
+
+          {/* Ligne 2 — filtre A→Z */}
+          <div className="w-full px-4 pb-2 flex items-center gap-1 overflow-x-auto">
+            {['all','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'].map(l => {
+              const isAll    = l === 'all';
+              const active   = fLetter === l;
+              const hasItems = isAll || usedLetters.has(l);
+              return (
+                <button key={l} onClick={() => hasItems && setFLetter(l)}
+                  className="flex-shrink-0 w-9 h-9 rounded-lg text-[13px] font-bold transition-all"
+                  style={active
+                    ? {background:'var(--t1)', color:'var(--bg)'}
+                    : hasItems
+                      ? {background:'var(--surface2)', color:'var(--t2)'}
+                      : {background:'transparent', color:'var(--border2)', cursor:'default'}}>
+                  {isAll ? '✕' : l}
+                </button>
+              );
+            })}
+            {(fLetter!=='all' || fYear!=='all') && (
+              <button onClick={()=>{setFLetter('all');setFYear('all');}}
+                className="flex-shrink-0 ml-2 px-3 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                style={{background:'#FEF2F2', color:'#DC2626'}}>
+                Réinitialiser
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* GRID */}
+        <main className="w-full px-4 py-8">
+          {filtered.length===0 ? (
+            <div className="flex flex-col items-center justify-center py-28 gap-3">
+              <div className="text-6xl opacity-20 select-none">{fCat!=='all'?CATS[fCat]?.icon:'📂'}</div>
+              <div className="text-base font-semibold" style={{color:'var(--t3)'}}>Rien à afficher</div>
+              <div className="text-sm opacity-60" style={{color:'var(--t3)'}}>Clique sur ＋ Ajouter pour commencer</div>
+            </div>
+          ) : (
+            <div className="grid gap-4" style={{gridTemplateColumns:'repeat(auto-fill,minmax(148px,1fr))'}}>
+              {filtered.map(item => <Card key={item.id} item={item} onOpen={openDetail} onEdit={handleEdit} onDelete={handleDelete} />)}
+            </div>
+          )}
+        </main>
+
+        {/* MODALS */}
+        <SearchModal open={modal==='search'} initialCat={fCat!=='all'?fCat:'movie'} onClose={()=>setModal(null)} onAddMany={handleAddMany} onManual={openManual} />
+        <AddEditModal open={modal==='add'} item={editItem} defaultCat={manualCat} onClose={()=>{setModal(null);setEditItem(null);}} onSave={handleSave} />
+        <DetailModal open={modal==='detail'} item={detailItem} onClose={()=>{setModal(null);setDetailItem(null);}} onEdit={handleEdit} onUpdate={handleUpdate} />
+
+        <Toast msg={toast.msg} visible={toast.on} />
+      </div>
+    </DarkCtx.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
