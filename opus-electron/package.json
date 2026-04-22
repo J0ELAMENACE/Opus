@@ -1,0 +1,44 @@
+{
+  "name": "opus",
+  "version": "1.0.0",
+  "description": "Carnet culturel personnel",
+  "main": "electron/main.js",
+  "scripts": {
+    "start":  "electron .",
+    "build":  "electron-builder --win",
+    "buildl": "electron-builder --linux"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron":         "^28.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId":       "com.opus.app",
+    "productName": "Opus",
+    "copyright":   "MIT",
+    "files": [
+      "index.html",
+      "electron/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick":           false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName":       "Opus"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon":   "assets/icon.png",
+      "category": "Utility"
+    }
+  }
+}
