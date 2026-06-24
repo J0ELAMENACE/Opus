@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Opus — Concept A : Sidebar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #080808;
+    --surface: #0D0D0D;
+    --s2:      #111111;
+    --s3:      #181818;
+    --border:  #1E1E1E;
+    --border2: #2A2A2A;
+    --t1: #EEEEEE;
+    --t2: #888888;
+    --t3: #505050;
+    --accent:  #FFFFFF;
+    --accent2: #AAAAAA;
+
+    /* category colors */
+    --c-film:  #E05252;
+    --c-serie: #48C77A;
+    --c-anime: #F4A84B;
+    --c-book:  #6090CC;
+    --c-game:  #4B9CF4;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--t1);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background-image:
+      radial-gradient(ellipse 50% 35% at 18% 0%, rgba(255,255,255,0.025) 0%, transparent 65%),
+      radial-gradient(ellipse 30% 20% at 85% 90%, rgba(75,156,244,0.04) 0%, transparent 55%);
+  }
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── TOPBAR ──────────────────────────────── */
+  .topbar {
+    height: 52px; flex-shrink: 0;
+    background: rgba(13,13,13,0.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 16px; gap: 10px;
+    position: relative; z-index: 20;
+  }
+  .back-link { color: var(--t3); font-size: 11px; font-weight: 600; text-decoration: none;
+    display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px;
+    transition: color 0.12s; }
+  .back-link:hover { color: var(--t2); }
+  .logo-wrap { display: flex; align-items: center; gap: 8px; margin-left: 4px; }
+  .logo-mark {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-mark img { width: 28px; height: 28px; object-fit: contain; }
+  .logo-text { font-size: 15px; font-weight: 700; letter-spacing: -0.04em; }
+  .logo-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--t3); border: 1px solid var(--border2); padding: 2px 6px; border-radius: 4px; margin-left: 2px; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--s2); border: 1px solid var(--border);
+    color: var(--t3); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .icon-btn:hover { border-color: var(--border2); color: var(--t2); }
+  .icon-btn svg { width: 14px; height: 14px; }
+  .add-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 15px; border-radius: 8px;
+    background: var(--s3); border: 1px solid var(--border2);
+    color: var(--t1); font-size: 12px; font-weight: 700;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.01em;
+    transition: background 0.12s, transform 0.1s;
+  }
+  .add-btn:hover { background: var(--border); transform: translateY(-1px); }
+  .add-btn svg { width: 13px; height: 13px; }
+
+  /* ── LAYOUT ──────────────────────────────── */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── SIDEBAR ─────────────────────────────── */
+  .sidebar {
+    width: 216px; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto; overflow-x: hidden;
+  }
+  .sb-section { padding: 14px 10px 6px; }
+  .sb-label {
+    font-size: 9px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--t3); padding: 0 8px; margin-bottom: 5px;
+  }
+
+  /* Search inside sidebar */
+  .sb-search { margin: 12px 10px 4px; position: relative; }
+  .sb-search input {
+    width: 100%;
+    background: var(--s2);
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    padding: 8px 12px 8px 32px;
+    font-size: 12px; color: var(--t1);
+    font-family: 'Space Grotesk', sans-serif;
+    transition: border-color 0.15s;
+  }
+  .sb-search input:focus { outline: none; border-color: var(--accent); }
+  .sb-search input::placeholder { color: var(--t3); }
+  .sb-search svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--t3); pointer-events: none; }
+
+  /* nav-item */
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 9px; border-radius: 8px;
+    font-size: 12.5px; font-weight: 500; color: var(--t2);
+    cursor: pointer; transition: all 0.1s;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--s3); color: var(--t1); }
+  .nav-item.active { background: rgba(255,255,255,0.06); color: var(--t1); }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: 0; top: 6px; bottom: 6px;
+    width: 2.5px; border-radius: 2px;
+    background: var(--t1);
+  }
+  .nav-count {
+    margin-left: auto;
+    font-size: 10px; font-weight: 700; color: var(--t3);
+    background: var(--s3); border: 1px solid var(--border);
+    padding: 0 5px; border-radius: 4px; min-width: 20px; text-align: center;
+  }
+  .nav-item.active .nav-count { background: rgba(255,255,255,0.08); border-color: var(--border2); color: var(--t2); }
+
+  /* category icon pills */
+  .cat-icon {
+    width: 20px; height: 20px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .cat-icon svg { width: 11px; height: 11px; }
+
+  /* status dots */
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .sb-divider { height: 1px; background: var(--border); margin: 8px 10px; }
+
+  /* mini stats in sidebar */
+  .sb-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 10px 6px; }
+  .sb-stat {
+    background: var(--s2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 10px;
+  }
+  .sb-stat-val { font-size: 18px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+  .sb-stat-lbl { font-size: 9px; color: var(--t3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 3px; }
+
+  /* A-Z selector */
+  .az-grid { display: flex; flex-wrap: wrap; gap: 3px; padding: 2px 2px; }
+  .az-btn {
+    width: 26px; height: 26px; border-radius: 6px;
+    font-size: 10px; font-weight: 700;
+    border: none; cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.1s;
+  }
+  .az-btn.on  { background: var(--border2); color: var(--t1); box-shadow: none; }
+  .az-btn.off { background: var(--s2); color: var(--t2); }
+  .az-btn.off:hover { background: var(--s3); color: var(--t1); }
+  .az-btn.empty { background: transparent; color: var(--border2); cursor: default; }
+
+  /* ── MAIN ────────────────────────────────── */
+  .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+  .main-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 22px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .main-title { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; display: flex; align-items: baseline; gap: 8px; }
+  .main-subtitle { font-size: 12px; color: var(--t3); font-weight: 500; }
+
+  .sort-row { display: flex; gap: 4px; }
+  .sort-btn {
+    padding: 5px 11px; border-radius: 6px;
+    font-size: 11px; font-weight: 700;
+    background: transparent; border: 1px solid transparent;
+    color: var(--t3); cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    transition: all 0.1s;
+  }
+  .sort-btn:hover { color: var(--t2); background: var(--s2); border-color: var(--border); }
+  .sort-btn.active { background: var(--s2); border-color: var(--border2); color: var(--t1); }
+
+  /* ── GRID ────────────────────────────────── */
+  .grid-area {
+    padding: 18px 22px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 12px;
+  }
+
+  /* Hover: blur non-hovered cards (21st.dev pattern) */
+  .card-group:hover .card { opacity: 0.45; filter: blur(1.5px) scale(0.97); }
+  .card-group .card:hover { opacity: 1 !important; filter: none !important; transform: scale(1.04) translateY(-3px) !important; z-index: 2; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+  }
+  .card:hover {
+    border-color: var(--border2);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+  }
+
+  /* cover */
+  .cover { aspect-ratio: 2/3; position: relative; overflow: hidden; background: var(--s2); }
+  .cover img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s; }
+  .card:hover .cover img { transform: scale(1.06); }
+  .cover-fallback {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cover-fallback svg { width: 36px; height: 36px; opacity: 0.25; }
+  .cover-grad { position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,8,8,0.95) 0%, rgba(8,8,8,0.4) 45%, transparent 100%); }
+  .cat-strip { position: absolute; bottom: 0; left: 0; right: 0; height: 2.5px; }
+
+  /* status pill */
+  .status-pill {
+    position: absolute; top: 8px; left: 8px;
+    font-size: 8px; font-weight: 800;
+    padding: 2px 7px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    backdrop-filter: blur(6px);
+  }
+
+  /* action buttons (appear on hover) */
+  .card-actions {
+    position: absolute; top: 8px; right: 8px;
+    display: flex; gap: 4px;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .card:hover .card-actions { opacity: 1; }
+  .act-btn {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: rgba(8,8,8,0.7); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--t1); font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.1s;
+  }
+  .act-btn:hover { background: rgba(255,255,255,0.15); }
+  .act-btn svg { width: 11px; height: 11px; }
+
+  /* card body */
+  .card-body { padding: 9px 10px 10px; }
+  .card-title { font-size: 12px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-meta  { font-size: 10px; color: var(--t3); font-weight: 500; margin-top: 2px; }
+  .stars { display: flex; gap: 2px; margin-top: 6px; }
+  .star { font-size: 9px; }
+  .no-note { font-size: 10px; color: var(--border2); margin-top: 6px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ──────────────────────────────────────── -->
+<header class="topbar">
+  <a href="index.html" class="back-link">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;"><path d="M10 3L5 8l5 5"/></svg>
+    Index
+  </a>
+  <div class="logo-wrap">
+    <div class="logo-mark">
+      <img src="logo.svg" alt="Opus" />
+    </div>
+    <span class="logo-text">Opus</span>
+    <span class="logo-badge">Beta</span>
+  </div>
+
+  <div class="topbar-right">
+    <!-- Sort desc -->
+    <div class="icon-btn" title="Tri descendant">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4h12M2 8h8M2 12h4"/></svg>
+    </div>
+    <!-- Import -->
+    <div class="icon-btn" title="Importer">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2v9M5 8l3 3 3-3"/><path d="M3 13h10"/></svg>
+    </div>
+    <!-- Settings -->
+    <div class="icon-btn" title="Paramètres">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="2"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1"/></svg>
+    </div>
+    <button class="add-btn">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3v10M3 8h10"/></svg>
+      Ajouter
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ───────────────────────────────────── -->
+  <aside class="sidebar">
+
+    <!-- Search -->
+    <div class="sb-search">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><path d="M11 11l2.5 2.5"/></svg>
+      <input placeholder="Filtrer ma bibliothèque…" />
+    </div>
+
+    <!-- Stats -->
+    <div class="sb-stats">
+      <div class="sb-stat">
+        <div class="sb-stat-val">247</div>
+        <div class="sb-stat-lbl">Total</div>
+      </div>
+      <div class="sb-stat">
+        <div class="sb-stat-val" style="color:#F4A84B;">12</div>
+        <div class="sb-stat-lbl">En cours</div>
+      </div>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <!-- Catégories -->
+    <div class="sb-section">
+      <div class="sb-label">Catégorie</div>
+
+      <div class="nav-item active">
+        <div class="cat-icon" style="background:rgba(224,82,82,0.15);">
+          <svg viewBox="0 0 16 16" fill="none" stroke="var(--c-film)" stroke-width="1.7"><rect x="1" y="3" width="14" height="10" rx="2"/><path d="M1 6h14M4 3v3M7 3v3M10 3v3M13 3v3"/></svg>
+        </div>
+        Films
+        <span class="nav-count">89</span>
+      </div>
+
+      <div class="nav-item">
+        <div class="cat-icon" style="background:rgba(72,199,122,0.12);">
+          <svg viewBox="0 0 16 16" fill="none" stroke="var(--c-serie)" stroke-width="1.7"><rect x="1" y="2" width="14" height="10" rx="2"/><path d="M5 14h6M8 12v2"/></svg>
+        </div>
+        Séries
+        <span class="nav-count">54</span>
+      </div>
+
+      <div class="nav-item">
+        <div class="cat-icon" style="background:rgba(244,168,75,0.12);">
+          <svg viewBox="0 0 16 16" fill="none" stroke="var(--c-anime)" stroke-width="1.7"><path d="M8 2C4.7 2 2 4.4 2 7.5c0 1.8.9 3.4 2.3 4.4.2.5.3 1.1.2 1.6L6 14h4l1.5-.5c-.1-.5 0-1.1.2-1.6C13.1 10.9 14 9.3 14 7.5 14 4.4 11.3 2 8 2z"/><path d="M6 8.5c0-.5.4-.5.7-.3M10 8.5c0-.5-.4-.5-.7-.3"/></svg>
+        </div>
+        Animés
+        <span class="nav-count">38</span>
+      </div>
+
+      <div class="nav-item">
+        <div class="cat-icon" style="background:rgba(144,144,200,0.12);">
+          <svg viewBox="0 0 16 16" fill="none" stroke="var(--c-book)" stroke-width="1.7"><path d="M3 2h8a1 1 0 0 1 1 1v11l-4.5-2L3 14V2z"/><path d="M7 2v11"/></svg>
+        </div>
+        Livres
+        <span class="nav-count">41</span>
+      </div>
+
+      <div class="nav-item">
+        <div class="cat-icon" style="background:rgba(75,156,244,0.12);">
+          <svg viewBox="0 0 16 16" fill="none" stroke="var(--c-game)" stroke-width="1.7"><rect x="1" y="4" width="14" height="8" rx="3"/><path d="M5 8h4M7 6v4"/><circle cx="11" cy="7" r=".5" fill="var(--c-game)"/><circle cx="11" cy="9" r=".5" fill="var(--c-game)"/></svg>
+        </div>
+        Jeux
+        <span class="nav-count">25</span>
+      </div>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <!-- État -->
+    <div class="sb-section">
+      <div class="sb-label">État</div>
+
+      <div class="nav-item">
+        <div class="status-dot" style="background:#606060;"></div>
+        À faire
+        <span class="nav-count">46</span>
+      </div>
+      <div class="nav-item">
+        <div class="status-dot" style="background:#F4A84B; box-shadow:0 0 6px rgba(244,168,75,0.5);"></div>
+        En cours
+        <span class="nav-count">12</span>
+      </div>
+      <div class="nav-item">
+        <div class="status-dot" style="background:#48C77A; box-shadow:0 0 6px rgba(72,199,122,0.4);"></div>
+        Terminé
+        <span class="nav-count">189</span>
+      </div>
+      <div class="nav-item">
+        <div class="status-dot" style="background:#E05252;"></div>
+        Abandonné
+        <span class="nav-count">0</span>
+      </div>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <!-- Année -->
+    <div class="sb-section">
+      <div class="sb-label">Décennie</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="var(--t3)" stroke-width="1.6" style="width:14px;height:14px;flex-shrink:0;"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12"/><path d="M6 2v4M10 2v4"/></svg>
+        2020s
+        <span class="nav-count">49</span>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="var(--t3)" stroke-width="1.6" style="width:14px;height:14px;flex-shrink:0;"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12"/><path d="M6 2v4M10 2v4"/></svg>
+        2010s
+        <span class="nav-count">88</span>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="var(--t3)" stroke-width="1.6" style="width:14px;height:14px;flex-shrink:0;"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M2 6h12"/><path d="M6 2v4M10 2v4"/></svg>
+        2000s
+        <span class="nav-count">62</span>
+      </div>
+      <div class="nav-item" style="font-size:11px;color:var(--t3);padding:5px 9px;cursor:pointer;">
+        Voir tout →
+      </div>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <!-- A → Z -->
+    <div class="sb-section" style="padding-bottom:16px;">
+      <div class="sb-label">Initiale</div>
+      <div class="az-grid">
+        <button class="az-btn on">A</button>
+        <button class="az-btn off">B</button>
+        <button class="az-btn off">C</button>
+        <button class="az-btn off">D</button>
+        <button class="az-btn off">E</button>
+        <button class="az-btn off">F</button>
+        <button class="az-btn off">G</button>
+        <button class="az-btn empty">H</button>
+        <button class="az-btn off">I</button>
+        <button class="az-btn off">J</button>
+        <button class="az-btn off">K</button>
+        <button class="az-btn off">L</button>
+        <button class="az-btn off">M</button>
+        <button class="az-btn off">N</button>
+        <button class="az-btn empty">O</button>
+        <button class="az-btn off">P</button>
+        <button class="az-btn off">Q</button>
+        <button class="az-btn off">R</button>
+        <button class="az-btn off">S</button>
+        <button class="az-btn off">T</button>
+        <button class="az-btn off">U</button>
+        <button class="az-btn empty">V</button>
+        <button class="az-btn off">W</button>
+        <button class="az-btn empty">X</button>
+        <button class="az-btn empty">Y</button>
+        <button class="az-btn off">Z</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ──────────────────────────────────────── -->
+  <main class="main">
+
+    <div class="main-header">
+      <div>
+        <div class="main-title">
+          Films
+          <span style="color:var(--t3);font-size:13px;font-weight:500;">89 résultats</span>
+        </div>
+        <div class="main-subtitle">Triés par date d'ajout</div>
+      </div>
+      <div class="sort-row">
+        <button class="sort-btn active">Récents</button>
+        <button class="sort-btn">A → Z</button>
+        <button class="sort-btn">Année</button>
+        <button class="sort-btn">Note ★</button>
+      </div>
+    </div>
+
+    <!-- CARDS — blur-others-on-hover -->
+    <div class="grid-area card-group">
+
+      <!-- ── Card 1 ── -->
+      <div class="card">
+        <div class="cover">
+          <img src="https://image.tmdb.org/t/p/w300/ljsZTbVsrQSqZgWeep2B1QiDKuh.jpg"
+               onerror="this.parentNode.innerHTML='<div class=cover-fallback><svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.2\'><rect x=\'2\' y=\'4\' width=\'20\' height=\'14\' rx=\'2\'/><path d=\'M2 8h20M6 4v4M9 4v4M12 4v4M15 4v4M18 4v4\'/></svg></div>'">
+          <div class="cover-grad"></div>
+          <span class="status-pill" style="background:rgba(72,199,122,0.18);color:#48C77A;border:1px solid rgba(72,199,122,0.3);">Terminé</span>
+          <div class="card-actions">
+            <button class="act-btn">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg>
+            </button>
+            <button class="act-btn">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg>
+            </button>
+          </div>
+          <div class="cat-strip" style="background:var(--c-film);"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">Inception</div>
+          <div class="card-meta">Nolan · 2010</div>
+          <div class="stars">
+            <span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Card 2 ── -->
+      <div class="card">
+        <div class="cover" style="background:linear-gradient(160deg,#161616,#0d0d0d);">
+          <div class="cover-fallback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M2 8h20M6 4v4M9 4v4M12 4v4M15 4v4M18 4v4"/></svg>
+          </div>
+          <div class="cover-grad"></div>
+          <span class="status-pill" style="background:rgba(244,168,75,0.18);color:#F4A84B;border:1px solid rgba(244,168,75,0.3);">En cours</span>
+          <div class="card-actions">
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg></button>
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg></button>
+          </div>
+          <div class="cat-strip" style="background:var(--c-film);"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">The Dark Knight</div>
+          <div class="card-meta">Nolan · 2008</div>
+          <div class="no-note">Pas encore noté</div>
+        </div>
+      </div>
+
+      <!-- ── Card 3 ── -->
+      <div class="card">
+        <div class="cover">
+          <img src="https://image.tmdb.org/t/p/w300/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg"
+               onerror="this.parentNode.innerHTML='<div class=cover-fallback><svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.2\'><rect x=\'2\' y=\'4\' width=\'20\' height=\'14\' rx=\'2\'/><path d=\'M2 8h20\'/></svg></div>'">
+          <div class="cover-grad"></div>
+          <span class="status-pill" style="background:rgba(72,199,122,0.18);color:#48C77A;border:1px solid rgba(72,199,122,0.3);">Terminé</span>
+          <div class="card-actions">
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg></button>
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg></button>
+          </div>
+          <div class="cat-strip" style="background:var(--c-film);"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">The Matrix</div>
+          <div class="card-meta">Wachowski · 1999</div>
+          <div class="stars">
+            <span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:var(--border2);">★</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Card 4 ── -->
+      <div class="card">
+        <div class="cover" style="background:linear-gradient(160deg,#141414,#0d0d0d);">
+          <div class="cover-fallback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M2 8h20"/></svg>
+          </div>
+          <div class="cover-grad"></div>
+          <span class="status-pill" style="background:rgba(96,96,96,0.2);color:#909090;border:1px solid rgba(96,96,96,0.2);">À faire</span>
+          <div class="card-actions">
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg></button>
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg></button>
+          </div>
+          <div class="cat-strip" style="background:var(--c-film);"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">Interstellar</div>
+          <div class="card-meta">Nolan · 2014</div>
+        </div>
+      </div>
+
+      <!-- ── Card 5 (Série) ── -->
+      <div class="card">
+        <div class="cover" style="background:linear-gradient(160deg,#0d1810,#0d0d0d);">
+          <div class="cover-fallback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          </div>
+          <div class="cover-grad"></div>
+          <span class="status-pill" style="background:rgba(244,168,75,0.18);color:#F4A84B;border:1px solid rgba(244,168,75,0.3);">En cours</span>
+          <div class="card-actions">
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg></button>
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg></button>
+          </div>
+          <div class="cat-strip" style="background:var(--c-serie);"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">The Last of Us</div>
+          <div class="card-meta">HBO · 2023</div>
+          <div class="stars">
+            <span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Card 6 (Jeu) ── -->
+      <div class="card">
+        <div class="cover" style="background:linear-gradient(160deg,#111318,#0d0d0d);">
+          <div class="cover-fallback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="6" width="22" height="12" rx="4"/><path d="M6 12h4M8 10v4"/><circle cx="16" cy="10" r="1" fill="currentColor"/><circle cx="18" cy="12" r="1" fill="currentColor"/></svg>
+          </div>
+          <div class="cover-grad"></div>
+          <span class="status-pill" style="background:rgba(72,199,122,0.18);color:#48C77A;border:1px solid rgba(72,199,122,0.3);">Terminé</span>
+          <div class="card-actions">
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg></button>
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg></button>
+          </div>
+          <div class="cat-strip" style="background:var(--c-game);"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">Breath of the Wild</div>
+          <div class="card-meta">Nintendo · 2017</div>
+          <div class="stars">
+            <span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:var(--border2);">★</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Card 7 (Livre) ── -->
+      <div class="card">
+        <div class="cover" style="background:linear-gradient(160deg,#141414,#0d0d0d);">
+          <div class="cover-fallback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M4 2h10a1 1 0 0 1 1 1v16l-6.5-3L2 19V3a1 1 0 0 1 1-1z"/><path d="M10 2v16"/></svg>
+          </div>
+          <div class="cover-grad"></div>
+          <span class="status-pill" style="background:rgba(96,96,96,0.2);color:#909090;border:1px solid rgba(96,96,96,0.2);">À faire</span>
+          <div class="card-actions">
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg></button>
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg></button>
+          </div>
+          <div class="cat-strip" style="background:var(--c-book);"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">Dune</div>
+          <div class="card-meta">Herbert · 1965</div>
+        </div>
+      </div>
+
+      <!-- ── Card 8 (Animé) ── -->
+      <div class="card">
+        <div class="cover" style="background:linear-gradient(160deg,#181408,#0d0d0d);">
+          <div class="cover-fallback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 3C8 3 5 6 5 9.5c0 2.5 1.4 4.7 3.5 6 .3.7.4 1.5.3 2.2L10 19h4l2.2-.7c-.1-.8 0-1.5.3-2.2C18.6 14.2 20 12 20 9.5 20 6 17 3 12 3z"/><path d="M9.5 10c0-.7.5-.7.9-.4M14.5 10c0-.7-.5-.7-.9-.4"/></svg>
+          </div>
+          <div class="cover-grad"></div>
+          <span class="status-pill" style="background:rgba(72,199,122,0.18);color:#48C77A;border:1px solid rgba(72,199,122,0.3);">Terminé</span>
+          <div class="card-actions">
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg></button>
+            <button class="act-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg></button>
+          </div>
+          <div class="cat-strip" style="background:var(--c-anime);"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">Fullmetal Alchemist</div>
+          <div class="card-meta">Studio BONES · 2009</div>
+          <div class="stars">
+            <span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span><span class="star" style="color:#F59E0B;">★</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /card-group -->
+  </main>
+</div>
+
+</body>
+</html>

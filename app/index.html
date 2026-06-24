@@ -1,0 +1,65 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opus</title>
+<style>
+  @font-face { font-family:'Space Grotesk'; font-weight:400; font-display:swap; src:url('assets/vendor/space-grotesk-400.ttf') format('truetype'); }
+  @font-face { font-family:'Space Grotesk'; font-weight:500; font-display:swap; src:url('assets/vendor/space-grotesk-500.ttf') format('truetype'); }
+  @font-face { font-family:'Space Grotesk'; font-weight:600; font-display:swap; src:url('assets/vendor/space-grotesk-600.ttf') format('truetype'); }
+  @font-face { font-family:'Space Grotesk'; font-weight:700; font-display:swap; src:url('assets/vendor/space-grotesk-700.ttf') format('truetype'); }
+</style>
+<script src="assets/vendor/tailwind.js"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{display:['Space Grotesk','system-ui','sans-serif'],body:['Space Grotesk','system-ui','sans-serif']}}}}</script>
+<script crossorigin src="assets/vendor/react.min.js"></script>
+<script crossorigin src="assets/vendor/react-dom.min.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+  :root {
+    --bg:#F5F5F5; --surface:#ffffff; --surface2:#F0F0F0; --hover:#E8E8E8;
+    --border:#E0E0E0; --border2:#C8C8C8;
+    --t1:#111111; --t2:#666666; --t3:#999999;
+    --shimmer1:#EBEBEB; --shimmer2:#E0E0E0;
+  }
+  body.dark {
+    --bg:#080808; --surface:#0D0D0D; --surface2:#111111; --hover:#181818;
+    --border:#1E1E1E; --border2:#2A2A2A;
+    --t1:#EEEEEE; --t2:#888888; --t3:#505050;
+    --shimmer1:#151515; --shimmer2:#111111;
+  }
+
+  body { font-family:'Space Grotesk',sans-serif; background:var(--bg); color:var(--t1); min-height:100vh; transition:background 0.2s, color 0.2s; }
+
+  .card-lift { transition:all 0.3s cubic-bezier(0.22,1,0.36,1); }
+  .card-group:hover .card-lift { opacity:0.45; filter:blur(1.5px) scale(0.97); }
+  .card-group .card-lift:hover { opacity:1 !important; filter:none !important; transform:scale(1.04) translateY(-3px) !important; z-index:2; box-shadow:0 20px 40px rgba(0,0,0,0.5); }
+  .cover-gradient { background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.25) 55%,transparent 100%); }
+  .modal-in { animation:modalIn 0.22s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes modalIn { from{opacity:0;transform:scale(0.96) translateY(10px)} to{opacity:1;transform:none} }
+  .backdrop-in { animation:fadeIn 0.18s ease; }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .toast-in { animation:toastIn 0.3s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes toastIn { from{opacity:0;transform:translateY(14px) scale(0.96)} to{opacity:1;transform:none} }
+  .star-btn { cursor:pointer; transition:transform 0.1s,color 0.1s; line-height:1; }
+  .star-btn:hover { transform:scale(1.25); }
+  .seg-btn { transition:all 0.15s; }
+  ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+  .shimmer { background:linear-gradient(90deg,var(--shimmer1) 25%,var(--shimmer2) 50%,var(--shimmer1) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+  @keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
+  input,select,textarea { font-family:'Space Grotesk',sans-serif; }
+  input:focus,select:focus,textarea:focus { outline:none; }
+  .action-btn { opacity:0; transition:opacity 0.15s; }
+  .card-root:hover .action-btn { opacity:1; }
+  .dm-toggle { cursor:pointer; width:46px; height:46px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; transition:all 0.15s; border:1.5px solid var(--border); background:var(--surface2); color:var(--t2); }
+  .dm-toggle:hover { background:var(--hover); color:var(--t1); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="assets/app.js"></script>
+</body>
+</html>
+
+

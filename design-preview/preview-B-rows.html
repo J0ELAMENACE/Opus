@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Opus — Concept B : Rows</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #07070D; --surface: #0F0F1C; --surface2: #14142A; --hover: #1A1A2E;
+    --border: #1C1C30; --border2: #28284A;
+    --t1: #E8E8FF; --t2: #8A8AAF; --t3: #52527A;
+  }
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    background-image: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(108,71,255,0.06) 0%, transparent 55%);
+    color: var(--t1);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  ::-webkit-scrollbar { height: 4px; width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* HEADER */
+  .header { height: 64px; background: rgba(15,15,28,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 32px; gap: 16px; position: sticky; top: 0; z-index: 30; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark { width: 32px; height: 32px; border-radius: 9px; background: linear-gradient(135deg, #6C47FF, #A855F7); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .logo-name { font-size: 18px; font-weight: 700; letter-spacing: -0.04em; }
+  .logo-sub { font-size: 11px; color: var(--t3); font-weight: 500; }
+  .header-search { margin-left: auto; position: relative; }
+  .header-search input { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 14px 8px 34px; font-size: 13px; color: var(--t1); font-family: 'Space Grotesk', sans-serif; width: 200px; transition: width 0.2s, border-color 0.2s; }
+  .header-search input:focus { outline: none; border-color: #6C47FF; width: 260px; }
+  .header-search input::placeholder { color: var(--t3); }
+  .header-search span { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--t3); font-size: 13px; pointer-events: none; }
+  .header-actions { display: flex; gap: 8px; margin-left: 12px; }
+  .icon-btn { width: 36px; height: 36px; border-radius: 9px; background: var(--surface2); border: 1px solid var(--border); color: var(--t2); font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .add-btn { display: flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 9px; background: #6C47FF; color: white; font-size: 13px; font-weight: 600; border: none; cursor: pointer; font-family: 'Space Grotesk', sans-serif; }
+
+  /* HERO stats */
+  .hero { padding: 40px 32px 0; display: flex; align-items: flex-end; justify-content: space-between; }
+  .hero-title { font-size: 36px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+  .hero-title span { color: var(--t3); }
+  .hero-stats { display: flex; gap: 24px; }
+  .stat-chip { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--t2); }
+  .stat-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* CAT FILTER pills */
+  .cat-pills { display: flex; gap: 8px; padding: 24px 32px 8px; overflow-x: auto; }
+  .cat-pill { display: flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0; border: 1.5px solid transparent; transition: all 0.15s; }
+  .cat-pill.active { border-color: currentColor; }
+  .cat-pill:not(.active) { background: var(--surface2); border-color: var(--border); color: var(--t2); }
+
+  /* SECTION ROW */
+  .section { padding: 28px 0 0; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; margin-bottom: 16px; }
+  .section-title { display: flex; align-items: center; gap: 10px; }
+  .section-name { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+  .section-count { font-size: 13px; color: var(--t3); font-weight: 500; }
+  .see-all { font-size: 13px; font-weight: 600; color: #6C47FF; cursor: pointer; }
+
+  /* Horizontal scroll row */
+  .row-scroll { display: flex; gap: 12px; overflow-x: auto; padding: 0 32px 12px; scroll-snap-type: x mandatory; }
+  .row-scroll::-webkit-scrollbar { display: none; }
+
+  /* Poster card */
+  .poster { flex-shrink: 0; width: 140px; scroll-snap-align: start; cursor: pointer; }
+  .poster-img { width: 140px; height: 210px; border-radius: 10px; overflow: hidden; position: relative; background: var(--surface); border: 1px solid var(--border); transition: all 0.25s; }
+  .poster:hover .poster-img { transform: scale(1.04); box-shadow: 0 12px 28px rgba(0,0,0,0.6); }
+  .poster-img img { width: 100%; height: 100%; object-fit: cover; }
+  .poster-img .fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 44px; }
+  .poster-img .grad { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 55%); }
+  .poster-img .status { position: absolute; top: 6px; left: 6px; font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 999px; letter-spacing: 0.03em; }
+  .poster-img .cat-strip { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; }
+  .poster-title { font-size: 12px; font-weight: 600; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--t1); }
+  .poster-meta { font-size: 10px; color: var(--t3); margin-top: 1px; }
+  .poster-stars { display: flex; gap: 1px; margin-top: 3px; }
+  .s { font-size: 9px; }
+
+  /* Divider */
+  .section-divider { height: 1px; background: var(--border); margin: 24px 32px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">📽</div>
+    <div>
+      <div class="logo-name">Opus</div>
+    </div>
+  </div>
+  <div class="header-search">
+    <span>⌕</span>
+    <input placeholder="Rechercher une œuvre…" />
+  </div>
+  <div class="header-actions">
+    <div class="icon-btn">⬆</div>
+    <div class="icon-btn">☀️</div>
+    <button class="add-btn">＋ Ajouter</button>
+  </div>
+  <a href="index.html" style="margin-left:12px;color:var(--t3);text-decoration:none;font-size:12px;">← Index</a>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div>
+    <div class="hero-title">Ma bibliothèque <span>247</span></div>
+    <div style="font-size:13px;color:var(--t3);margin-top:6px;font-weight:500;">Dernière mise à jour aujourd'hui</div>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-chip"><div class="stat-dot" style="background:#D97706;"></div> 12 en cours</div>
+    <div class="stat-chip"><div class="stat-dot" style="background:#16A34A;"></div> 189 terminés</div>
+    <div class="stat-chip"><div class="stat-dot" style="background:#9CA3AF;"></div> 46 à faire</div>
+  </div>
+</div>
+
+<!-- CAT PILLS -->
+<div class="cat-pills">
+  <div class="cat-pill" style="background:rgba(108,71,255,0.12);color:#A78BFA;border-color:#6C47FF50;">✦ Tout</div>
+  <div class="cat-pill active" style="color:#DC2626;">🎬 Films</div>
+  <div class="cat-pill active" style="color:#16A34A;">📺 Séries</div>
+  <div class="cat-pill active" style="color:#D97706;">⛩️ Animés</div>
+  <div class="cat-pill active" style="color:#7C3AED;">📚 Livres</div>
+  <div class="cat-pill active" style="color:#2563EB;">🎮 Jeux</div>
+</div>
+
+<!-- ── FILMS ROW ── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">
+      <span style="font-size:18px;">🎬</span>
+      <span class="section-name">Films</span>
+      <span class="section-count">89</span>
+    </div>
+    <span class="see-all">Voir tout →</span>
+  </div>
+  <div class="row-scroll">
+
+    <div class="poster">
+      <div class="poster-img">
+        <img src="https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg" onerror="this.style.display='none'">
+        <div class="grad"></div>
+        <div class="status" style="background:rgba(22,163,74,0.3);color:#16A34A;">Terminé</div>
+        <div class="cat-strip" style="background:#DC2626;"></div>
+      </div>
+      <div class="poster-title">Inception</div>
+      <div class="poster-meta">Nolan · 2010</div>
+      <div class="poster-stars"><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span></div>
+    </div>
+
+    <div class="poster">
+      <div class="poster-img">
+        <img src="https://m.media-amazon.com/images/M/MV5BNzQzOTk3OTAtNDQ0Zi00ZTVlLTM5YTctZjQ0MmJlNmMzYjVhXkEyXkFqcGdeQXVyNjU0OTQ0OTY@._V1_SX300.jpg" onerror="this.style.display='none'">
+        <div class="grad"></div>
+        <div class="status" style="background:rgba(22,163,74,0.3);color:#16A34A;">Terminé</div>
+        <div class="cat-strip" style="background:#DC2626;"></div>
+      </div>
+      <div class="poster-title">The Matrix</div>
+      <div class="poster-meta">Wachowski · 1999</div>
+      <div class="poster-stars"><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:var(--border2);">★</span></div>
+    </div>
+
+    <div class="poster">
+      <div class="poster-img" style="background:#2A1414;">
+        <div class="fallback">🎬</div>
+        <div class="status" style="background:rgba(217,119,6,0.3);color:#D97706;">En cours</div>
+        <div class="cat-strip" style="background:#DC2626;"></div>
+      </div>
+      <div class="poster-title">Interstellar</div>
+      <div class="poster-meta">Nolan · 2014</div>
+    </div>
+
+    <div class="poster">
+      <div class="poster-img" style="background:#2A1414;">
+        <div class="fallback">🎬</div>
+        <div class="status" style="background:rgba(22,163,74,0.3);color:#16A34A;">Terminé</div>
+        <div class="cat-strip" style="background:#DC2626;"></div>
+      </div>
+      <div class="poster-title">Pulp Fiction</div>
+      <div class="poster-meta">Tarantino · 1994</div>
+      <div class="poster-stars"><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span></div>
+    </div>
+
+    <div class="poster">
+      <div class="poster-img" style="background:#2A1414;">
+        <div class="fallback">🎬</div>
+        <div class="status" style="background:rgba(156,163,175,0.2);color:#9CA3AF;">À faire</div>
+        <div class="cat-strip" style="background:#DC2626;"></div>
+      </div>
+      <div class="poster-title">Fight Club</div>
+      <div class="poster-meta">Fincher · 1999</div>
+    </div>
+
+    <div class="poster">
+      <div class="poster-img" style="background:#2A1414;">
+        <div class="fallback">🎬</div>
+        <div class="status" style="background:rgba(22,163,74,0.3);color:#16A34A;">Terminé</div>
+        <div class="cat-strip" style="background:#DC2626;"></div>
+      </div>
+      <div class="poster-title">2001: A Space Odyssey</div>
+      <div class="poster-meta">Kubrick · 1968</div>
+    </div>
+
+    <div class="poster">
+      <div class="poster-img" style="background:#2A1414;">
+        <div class="fallback">🎬</div>
+        <div class="status" style="background:rgba(156,163,175,0.2);color:#9CA3AF;">À faire</div>
+        <div class="cat-strip" style="background:#DC2626;"></div>
+      </div>
+      <div class="poster-title">Dune Part Two</div>
+      <div class="poster-meta">Villeneuve · 2024</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ── SÉRIES ROW ── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">
+      <span style="font-size:18px;">📺</span>
+      <span class="section-name">Séries</span>
+      <span class="section-count">54</span>
+    </div>
+    <span class="see-all">Voir tout →</span>
+  </div>
+  <div class="row-scroll">
+    <div class="poster">
+      <div class="poster-img" style="background:#0E2518;">
+        <div class="fallback">📺</div>
+        <div class="status" style="background:rgba(217,119,6,0.3);color:#D97706;">En cours</div>
+        <div class="cat-strip" style="background:#16A34A;"></div>
+      </div>
+      <div class="poster-title">The Last of Us</div>
+      <div class="poster-meta">2023</div>
+    </div>
+    <div class="poster">
+      <div class="poster-img" style="background:#0E2518;">
+        <div class="fallback">📺</div>
+        <div class="status" style="background:rgba(22,163,74,0.3);color:#16A34A;">Terminé</div>
+        <div class="cat-strip" style="background:#16A34A;"></div>
+      </div>
+      <div class="poster-title">Breaking Bad</div>
+      <div class="poster-meta">2008–2013</div>
+      <div class="poster-stars"><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span></div>
+    </div>
+    <div class="poster">
+      <div class="poster-img" style="background:#0E2518;">
+        <div class="fallback">📺</div>
+        <div class="status" style="background:rgba(22,163,74,0.3);color:#16A34A;">Terminé</div>
+        <div class="cat-strip" style="background:#16A34A;"></div>
+      </div>
+      <div class="poster-title">Chernobyl</div>
+      <div class="poster-meta">2019</div>
+    </div>
+    <div class="poster">
+      <div class="poster-img" style="background:#0E2518;">
+        <div class="fallback">📺</div>
+        <div class="status" style="background:rgba(156,163,175,0.2);color:#9CA3AF;">À faire</div>
+        <div class="cat-strip" style="background:#16A34A;"></div>
+      </div>
+      <div class="poster-title">Shogun</div>
+      <div class="poster-meta">2024</div>
+    </div>
+    <div class="poster">
+      <div class="poster-img" style="background:#0E2518;">
+        <div class="fallback">📺</div>
+        <div class="status" style="background:rgba(22,163,74,0.3);color:#16A34A;">Terminé</div>
+        <div class="cat-strip" style="background:#16A34A;"></div>
+      </div>
+      <div class="poster-title">Dark</div>
+      <div class="poster-meta">2017–2020</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ── JEUX ROW ── -->
+<div class="section" style="padding-bottom:40px;">
+  <div class="section-header">
+    <div class="section-title">
+      <span style="font-size:18px;">🎮</span>
+      <span class="section-name">Jeux</span>
+      <span class="section-count">25</span>
+    </div>
+    <span class="see-all">Voir tout →</span>
+  </div>
+  <div class="row-scroll">
+    <div class="poster">
+      <div class="poster-img" style="background:#0D1A33;">
+        <div class="fallback">🎮</div>
+        <div class="status" style="background:rgba(22,163,74,0.3);color:#16A34A;">Terminé</div>
+        <div class="cat-strip" style="background:#2563EB;"></div>
+      </div>
+      <div class="poster-title">Breath of the Wild</div>
+      <div class="poster-meta">Nintendo · 2017</div>
+      <div class="poster-stars"><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:var(--border2);">★</span></div>
+    </div>
+    <div class="poster">
+      <div class="poster-img" style="background:#0D1A33;">
+        <div class="fallback">🎮</div>
+        <div class="status" style="background:rgba(217,119,6,0.3);color:#D97706;">En cours</div>
+        <div class="cat-strip" style="background:#2563EB;"></div>
+      </div>
+      <div class="poster-title">Elden Ring</div>
+      <div class="poster-meta">FromSoftware · 2022</div>
+    </div>
+    <div class="poster">
+      <div class="poster-img" style="background:#0D1A33;">
+        <div class="fallback">🎮</div>
+        <div class="status" style="background:rgba(22,163,74,0.3);color:#16A34A;">Terminé</div>
+        <div class="cat-strip" style="background:#2563EB;"></div>
+      </div>
+      <div class="poster-title">Red Dead 2</div>
+      <div class="poster-meta">Rockstar · 2018</div>
+    </div>
+    <div class="poster">
+      <div class="poster-img" style="background:#0D1A33;">
+        <div class="fallback">🎮</div>
+        <div class="status" style="background:rgba(156,163,175,0.2);color:#9CA3AF;">À faire</div>
+        <div class="cat-strip" style="background:#2563EB;"></div>
+      </div>
+      <div class="poster-title">Hollow Knight</div>
+      <div class="poster-meta">Team Cherry · 2017</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

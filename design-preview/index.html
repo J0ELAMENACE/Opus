@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Opus — Design Previews</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+  body { font-family: 'Space Grotesk', sans-serif; background: #07070D; color: #E8E8FF; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 48px 24px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+  p { color: #52527A; font-size: 14px; margin-top: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; width: 100%; max-width: 900px; }
+  a { display: block; background: #0F0F1C; border: 1px solid #1C1C30; border-radius: 16px; padding: 28px 24px; text-decoration: none; transition: all 0.2s; }
+  a:hover { border-color: #6C47FF; transform: translateY(-3px); box-shadow: 0 12px 32px rgba(108,71,255,0.15); }
+  .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #52527A; margin-bottom: 10px; }
+  .title { font-size: 20px; font-weight: 700; color: #E8E8FF; letter-spacing: -0.02em; }
+  .desc { font-size: 13px; color: #8A8AAF; margin-top: 8px; line-height: 1.5; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #14142A; color: #8A8AAF; margin-top: 14px; }
+</style>
+</head>
+<body>
+  <div style="text-align:center;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:#52527A;margin-bottom:12px;">Opus · Design Previews</div>
+    <h1>Choisissez une direction</h1>
+    <p>Police : Space Grotesk · 3 layouts radicalement différents</p>
+  </div>
+  <div class="grid">
+    <a href="preview-A-sidebar.html">
+      <div class="label">Concept A</div>
+      <div class="title">Sidebar + Grille</div>
+      <div class="desc">Filtres dans un panneau gauche fixe. Grille principale avec hover blur inspiré de 21st.dev.</div>
+      <div class="tag">Linear / Notion</div>
+    </a>
+    <a href="preview-B-rows.html">
+      <div class="label">Concept B</div>
+      <div class="title">Rows par catégorie</div>
+      <div class="desc">Une rangée horizontale par type (Films, Séries…). Grands posters, scroll horizontal.</div>
+      <div class="tag">Netflix / Letterboxd</div>
+    </a>
+    <a href="preview-C-spotlight.html">
+      <div class="label">Concept C</div>
+      <div class="title">Spotlight</div>
+      <div class="desc">Interface minimaliste centrée sur la recherche. Résultats en liste dense, zéro bruit.</div>
+      <div class="tag">Raycast / Arc</div>
+    </a>
+  </div>
+</body>
+</html>

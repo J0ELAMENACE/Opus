@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opus — Design Preview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #07070D;
+    --surface:  #0F0F1C;
+    --surface2: #14142A;
+    --hover:    #1A1A2E;
+    --border:   #1C1C30;
+    --border2:  #28284A;
+    --t1:       #E8E8FF;
+    --t2:       #8A8AAF;
+    --t3:       #52527A;
+  }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    background-image: radial-gradient(ellipse 80% 50% at 50% -5%, rgba(100,80,255,0.10) 0%, transparent 60%);
+    color: var(--t1);
+    min-height: 100vh;
+  }
+
+  .font-display { font-family: 'Playfair Display', Georgia, serif; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    position: relative;
+  }
+  .card:hover {
+    transform: translateY(-5px);
+  }
+  .card:hover.cat-movie  { box-shadow: 0 20px 40px rgba(0,0,0,.5), 0 0 28px #DC262622; border-color: #DC262650; }
+  .card:hover.cat-series { box-shadow: 0 20px 40px rgba(0,0,0,.5), 0 0 28px #16A34A22; border-color: #16A34A50; }
+  .card:hover.cat-anime  { box-shadow: 0 20px 40px rgba(0,0,0,.5), 0 0 28px #D9770622; border-color: #D9770650; }
+  .card:hover.cat-book   { box-shadow: 0 20px 40px rgba(0,0,0,.5), 0 0 28px #7C3AED22; border-color: #7C3AED50; }
+  .card:hover.cat-game   { box-shadow: 0 20px 40px rgba(0,0,0,.5), 0 0 28px #2563EB22; border-color: #2563EB50; }
+
+  .card .actions {
+    position: absolute; top: 8px; right: 8px;
+    display: flex; gap: 4px;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .card:hover .actions { opacity: 1; }
+  .action-btn {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(6px);
+    color: white; font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; border: none;
+  }
+
+  .cover-gradient {
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+    position: absolute; inset: 0; pointer-events: none;
+  }
+
+  /* Shimmer */
+  .shimmer {
+    background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer { from { background-position: 200% 0 } to { background-position: -200% 0 } }
+
+  /* Segment control */
+  .seg { background: var(--surface2); border-radius: 12px; padding: 4px; display: flex; gap: 2px; }
+  .seg-btn {
+    padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; background: transparent; color: var(--t3);
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .seg-btn.active {
+    background: var(--surface); color: var(--t1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  /* Pill */
+  .pill {
+    font-size: 10px; font-weight: 700; padding: 3px 9px;
+    border-radius: 999px; display: inline-flex; align-items: center;
+  }
+
+  /* Badge */
+  .badge {
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  /* Alpha grid */
+  .alpha-btn {
+    width: 34px; height: 34px; border-radius: 8px; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; border: none; background: var(--surface2); color: var(--t2);
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .alpha-btn.active { background: var(--t1); color: var(--bg); }
+  .alpha-btn.empty  { background: transparent; color: var(--border2); cursor: default; }
+
+  /* Stars */
+  .star { font-size: 11px; }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(10px); display: flex; align-items: center;
+    justify-content: center; padding: 16px; z-index: 50;
+  }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 24px; width: 100%; max-width: 420px;
+    animation: modalIn 0.22s cubic-bezier(0.16,1,0.3,1);
+    overflow: hidden;
+  }
+  @keyframes modalIn { from { opacity:0; transform:scale(0.96) translateY(10px) } to { opacity:1; transform:none } }
+
+  /* Search bar */
+  .search-input {
+    background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 12px; padding: 9px 12px; font-size: 14px;
+    color: var(--t1); font-family: 'Outfit', sans-serif; width: 100%;
+  }
+  .search-input:focus { outline: none; border-color: var(--border2); }
+  .search-input::placeholder { color: var(--t3); }
+
+  /* DM toggle */
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--surface2); border: 1.5px solid var(--border);
+    color: var(--t2); font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+
+  /* Empty state */
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 0; gap: 12px; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--t1); color: var(--bg);
+    padding: 10px 20px; border-radius: 14px;
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    animation: toastIn 0.3s cubic-bezier(0.16,1,0.3,1);
+    z-index: 100;
+  }
+  @keyframes toastIn { from { opacity:0; transform:translateY(12px) scale(0.96) } to { opacity:1; transform:none } }
+
+  /* Label */
+  .label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--t3); margin-bottom: 5px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════ HEADER -->
+<header style="background: var(--surface); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 30;">
+  <div style="max-width: 1400px; margin: 0 auto; padding: 0 24px; height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+
+    <!-- Logo + title -->
+    <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+      <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #6C47FF, #A855F7); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">📽</div>
+      <div style="display: flex; flex-direction: column; line-height: 1;">
+        <span class="font-display" style="font-size: 19px; font-weight: 900; color: var(--t1); letter-spacing: -0.02em;">Opus</span>
+        <span style="font-size: 11px; color: var(--t3); font-weight: 500;">carnet culturel</span>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div style="display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 7px 14px; font-size: 13px;">
+      <span style="font-weight: 700; color: var(--t1);">247</span>
+      <span style="color: var(--border2);">·</span>
+      <span style="color: #D97706;">⬤ 12 en cours</span>
+      <span style="color: var(--border2);">·</span>
+      <span style="color: #16A34A;">⬤ 189 terminés</span>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+      <button class="icon-btn" title="Exporter">⬆</button>
+      <button class="icon-btn" title="Importer">⬇</button>
+      <button class="icon-btn" title="Mode clair">☀️</button>
+      <button style="display: flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 12px; background: var(--t1); color: var(--bg); font-size: 14px; font-weight: 700; border: none; cursor: pointer; font-family: 'Outfit', sans-serif;">
+        <span>＋</span> Ajouter
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════ TOOLBAR -->
+<div style="background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 72px; z-index: 20;">
+  <!-- Row 1 -->
+  <div style="max-width: 1400px; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 8px; overflow-x: auto;">
+    <!-- Category seg -->
+    <div class="seg" style="flex-shrink: 0;">
+      <button class="seg-btn active">Tout</button>
+      <button class="seg-btn">🎬</button>
+      <button class="seg-btn">📺</button>
+      <button class="seg-btn">⛩️</button>
+      <button class="seg-btn">📚</button>
+      <button class="seg-btn">🎮</button>
+    </div>
+    <!-- Status seg -->
+    <div class="seg" style="flex-shrink: 0;">
+      <button class="seg-btn active">Tous</button>
+      <button class="seg-btn">À faire</button>
+      <button class="seg-btn" style="color: #D97706;">En cours</button>
+      <button class="seg-btn" style="color: #16A34A;">Terminé</button>
+      <button class="seg-btn" style="color: #DC2626;">Abandonné</button>
+    </div>
+    <div style="flex: 1;"></div>
+    <!-- Année -->
+    <select style="background: var(--surface); border: 1px solid var(--border); color: var(--t1); border-radius: 12px; padding: 8px 14px; font-size: 13px; font-family: 'Outfit',sans-serif; cursor: pointer; flex-shrink: 0;">
+      <option>Année</option>
+      <option>2024</option>
+      <option>2023</option>
+    </select>
+    <!-- Tri -->
+    <select style="background: var(--surface); border: 1px solid var(--border); color: var(--t1); border-radius: 12px; padding: 8px 14px; font-size: 13px; font-family: 'Outfit',sans-serif; cursor: pointer; flex-shrink: 0;">
+      <option>Récents</option>
+      <option>A → Z</option>
+      <option>Année</option>
+    </select>
+    <!-- Search -->
+    <div style="position: relative; flex-shrink: 0;">
+      <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--t3); font-size: 13px; pointer-events: none;">⌕</span>
+      <input class="search-input" style="padding-left: 30px; width: 160px;" placeholder="Filtrer…" />
+    </div>
+  </div>
+  <!-- Row 2 — A→Z -->
+  <div style="max-width: 1400px; margin: 0 auto; padding: 0 24px 10px; display: flex; align-items: center; gap: 4px; overflow-x: auto;">
+    <button class="alpha-btn active">✕</button>
+    <button class="alpha-btn">A</button>
+    <button class="alpha-btn">B</button>
+    <button class="alpha-btn">C</button>
+    <button class="alpha-btn">D</button>
+    <button class="alpha-btn">E</button>
+    <button class="alpha-btn">F</button>
+    <button class="alpha-btn">G</button>
+    <button class="alpha-btn">H</button>
+    <button class="alpha-btn empty">I</button>
+    <button class="alpha-btn">J</button>
+    <button class="alpha-btn empty">K</button>
+    <button class="alpha-btn">L</button>
+    <button class="alpha-btn">M</button>
+    <button class="alpha-btn">N</button>
+    <button class="alpha-btn">O</button>
+    <button class="alpha-btn">P</button>
+    <button class="alpha-btn empty">Q</button>
+    <button class="alpha-btn">R</button>
+    <button class="alpha-btn">S</button>
+    <button class="alpha-btn">T</button>
+    <button class="alpha-btn">U</button>
+    <button class="alpha-btn">V</button>
+    <button class="alpha-btn empty">W</button>
+    <button class="alpha-btn empty">X</button>
+    <button class="alpha-btn empty">Y</button>
+    <button class="alpha-btn">Z</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ GRID -->
+<main style="max-width: 1400px; margin: 0 auto; padding: 32px 24px;">
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px;">
+
+    <!-- Card: Film -->
+    <div class="card cat-movie">
+      <div style="aspect-ratio: 2/3; background: #2A1414; position: relative; overflow: hidden;">
+        <img src="https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg" alt="Inception" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />
+        <div class="cover-gradient"></div>
+        <div style="position:absolute; top:8px; left:8px;">
+          <span class="badge" style="background:rgba(22,163,74,0.25); color:#16A34A; border:1px solid #16A34A40;">Terminé</span>
+        </div>
+        <div class="actions">
+          <button class="action-btn">✎</button>
+          <button class="action-btn">✕</button>
+        </div>
+        <div style="position:absolute; bottom:0; left:0; right:0; height:3px; background:#DC2626;"></div>
+      </div>
+      <div style="padding: 12px;">
+        <div style="font-size:13px; font-weight:600; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Inception</div>
+        <div style="font-size:11px; color:var(--t3); margin-top:2px;">Nolan · 2010</div>
+        <div style="margin-top:8px;"><span class="badge" style="background:#2A1414; color:#DC2626;">Sci-Fi</span></div>
+        <div style="margin-top:6px; display:flex; gap:1px;">
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:#F59E0B;">★</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Série (en cours) -->
+    <div class="card cat-series">
+      <div style="aspect-ratio: 2/3; background: #0E2518; position: relative; overflow: hidden; display:flex; align-items:center; justify-content:center; font-size:48px;">
+        📺
+        <div style="position:absolute; top:8px; left:8px;">
+          <span class="badge" style="background:rgba(217,119,6,0.25); color:#D97706; border:1px solid #D9770640;">En cours</span>
+        </div>
+        <div class="actions">
+          <button class="action-btn">✎</button>
+          <button class="action-btn">✕</button>
+        </div>
+        <div style="position:absolute; bottom:0; left:0; right:0; height:3px; background:#16A34A;"></div>
+      </div>
+      <div style="padding: 12px;">
+        <div style="font-size:13px; font-weight:600; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">The Last of Us</div>
+        <div style="font-size:11px; color:var(--t3); margin-top:2px;">2023</div>
+        <div style="margin-top:8px;"><span class="badge" style="background:#0E2518; color:#16A34A;">Drama</span></div>
+      </div>
+    </div>
+
+    <!-- Card: Jeu -->
+    <div class="card cat-game">
+      <div style="aspect-ratio: 2/3; background: #0D1A33; position: relative; overflow: hidden;">
+        <img src="https://upload.wikimedia.org/wikipedia/en/5/5e/The_Legend_of_Zelda_Breath_of_the_Wild.jpg" alt="Zelda" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />
+        <div class="cover-gradient"></div>
+        <div style="position:absolute; top:8px; left:8px;">
+          <span class="badge" style="background:rgba(37,99,235,0.25); color:#2563EB; border:1px solid #2563EB40;">Terminé</span>
+        </div>
+        <div class="actions">
+          <button class="action-btn">✎</button>
+          <button class="action-btn">✕</button>
+        </div>
+        <div style="position:absolute; bottom:0; left:0; right:0; height:3px; background:#2563EB;"></div>
+      </div>
+      <div style="padding: 12px;">
+        <div style="font-size:13px; font-weight:600; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Breath of the Wild</div>
+        <div style="font-size:11px; color:var(--t3); margin-top:2px;">Nintendo · 2017</div>
+        <div style="margin-top:8px;"><span class="badge" style="background:#0D1A33; color:#2563EB;">Adventure</span></div>
+        <div style="margin-top:6px; display:flex; gap:1px;">
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:var(--border2);">★</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Animé (à faire) -->
+    <div class="card cat-anime">
+      <div style="aspect-ratio: 2/3; background: #2A1F07; position: relative; overflow: hidden; display:flex; align-items:center; justify-content:center; font-size:48px;">
+        ⛩️
+        <div style="position:absolute; top:8px; left:8px;">
+          <span class="badge" style="background:rgba(156,163,175,0.15); color:#9CA3AF; border:1px solid #9CA3AF30;">À faire</span>
+        </div>
+        <div class="actions">
+          <button class="action-btn">✎</button>
+          <button class="action-btn">✕</button>
+        </div>
+        <div style="position:absolute; bottom:0; left:0; right:0; height:3px; background:#D97706;"></div>
+      </div>
+      <div style="padding: 12px;">
+        <div style="font-size:13px; font-weight:600; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Demon Slayer</div>
+        <div style="font-size:11px; color:var(--t3); margin-top:2px;">Ufotable · 2019</div>
+        <div style="margin-top:8px;"><span class="badge" style="background:#2A1F07; color:#D97706;">Action</span></div>
+      </div>
+    </div>
+
+    <!-- Card: Livre -->
+    <div class="card cat-book">
+      <div style="aspect-ratio: 2/3; background: #1D1230; position: relative; overflow: hidden; display:flex; align-items:center; justify-content:center; font-size:48px;">
+        📚
+        <div style="position:absolute; top:8px; left:8px;">
+          <span class="badge" style="background:rgba(220,38,38,0.2); color:#DC2626; border:1px solid #DC262640;">Abandonné</span>
+        </div>
+        <div class="actions">
+          <button class="action-btn">✎</button>
+          <button class="action-btn">✕</button>
+        </div>
+        <div style="position:absolute; bottom:0; left:0; right:0; height:3px; background:#7C3AED;"></div>
+      </div>
+      <div style="padding: 12px;">
+        <div style="font-size:13px; font-weight:600; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Dune</div>
+        <div style="font-size:11px; color:var(--t3); margin-top:2px;">Frank Herbert · 1965</div>
+        <div style="margin-top:8px;"><span class="badge" style="background:#1D1230; color:#7C3AED;">Science-Fiction</span></div>
+      </div>
+    </div>
+
+    <!-- Card: Film avec cover -->
+    <div class="card cat-movie">
+      <div style="aspect-ratio: 2/3; background: #2A1414; position: relative; overflow: hidden;">
+        <img src="https://m.media-amazon.com/images/M/MV5BNzQzOTk3OTAtNDQ0Zi00ZTVlLTM5YTctZjQ0MmJlNmMzYjVhXkEyXkFqcGdeQXVyNjU0OTQ0OTY@._V1_SX300.jpg" alt="The Matrix" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />
+        <div class="cover-gradient"></div>
+        <div style="position:absolute; top:8px; left:8px;">
+          <span class="badge" style="background:rgba(22,163,74,0.25); color:#16A34A; border:1px solid #16A34A40;">Terminé</span>
+        </div>
+        <div class="actions">
+          <button class="action-btn">✎</button>
+          <button class="action-btn">✕</button>
+        </div>
+        <div style="position:absolute; bottom:0; left:0; right:0; height:3px; background:#DC2626;"></div>
+      </div>
+      <div style="padding: 12px;">
+        <div style="font-size:13px; font-weight:600; color:var(--t1);">The Matrix</div>
+        <div style="font-size:11px; color:var(--t3); margin-top:2px;">Wachowski · 1999</div>
+        <div style="margin-top:8px;"><span class="badge" style="background:#2A1414; color:#DC2626;">Action</span></div>
+        <div style="margin-top:6px; display:flex; gap:1px;">
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:#F59E0B;">★</span>
+          <span class="star" style="color:var(--border2);">★</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card shimmer (loading) -->
+    <div class="card" style="pointer-events:none; opacity:0.4;">
+      <div style="aspect-ratio:2/3;" class="shimmer"></div>
+      <div style="padding:12px; display:flex; flex-direction:column; gap:8px;">
+        <div class="shimmer" style="height:12px; border-radius:6px; width:75%;"></div>
+        <div class="shimmer" style="height:10px; border-radius:6px; width:50%;"></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ═══════════════════════════════════════════════════ MODAL: SEARCH -->
+<div style="margin: 0 auto; max-width: 1400px; padding: 0 24px 40px;">
+  <h2 class="font-display" style="font-size: 22px; font-weight: 700; color: var(--t2); margin-bottom: 16px; letter-spacing: -0.01em;">Modal — Recherche</h2>
+  <div class="modal" style="position: relative; max-width: 480px; margin: 0 auto;">
+    <div style="padding: 24px 24px 16px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+        <h2 class="font-display" style="font-size:20px; font-weight:700; color:var(--t1);">Ajouter une œuvre</h2>
+        <button style="color:var(--t3); background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <!-- Cat tabs -->
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">
+        <button style="padding:6px 14px; border-radius:999px; font-size:12px; font-weight:700; background:#DC2626; color:white; border:none; cursor:pointer;">🎬 Films</button>
+        <button style="padding:6px 14px; border-radius:999px; font-size:12px; font-weight:700; background:#0E2518; color:#16A34A; border:none; cursor:pointer;">📺 Séries</button>
+        <button style="padding:6px 14px; border-radius:999px; font-size:12px; font-weight:700; background:#2A1F07; color:#D97706; border:none; cursor:pointer;">⛩️ Animés</button>
+        <button style="padding:6px 14px; border-radius:999px; font-size:12px; font-weight:700; background:#1D1230; color:#7C3AED; border:none; cursor:pointer;">📚 Livres</button>
+        <button style="padding:6px 14px; border-radius:999px; font-size:12px; font-weight:700; background:#0D1A33; color:#2563EB; border:none; cursor:pointer;">🎮 Jeux</button>
+      </div>
+      <!-- Search row -->
+      <div style="display:flex; gap:8px;">
+        <input class="search-input" placeholder="Rechercher…" style="flex:1;" value="Inception" />
+        <select style="background:var(--surface2); border:1.5px solid var(--border); color:var(--t1); border-radius:12px; padding:0 12px; font-size:13px; font-family:'Outfit',sans-serif; cursor:pointer;"><option>5</option></select>
+        <button style="padding:9px 16px; border-radius:12px; background:#DC2626; color:white; font-size:13px; font-weight:700; border:none; cursor:pointer;">Chercher</button>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+        <button style="font-size:12px; font-weight:500; color:var(--t2); background:none; border:none; cursor:pointer;">Tout sélectionner</button>
+        <span style="font-size:12px; color:var(--t3);">3 résultats · coche pour sélectionner</span>
+      </div>
+    </div>
+    <!-- Results -->
+    <div style="max-height:260px; overflow-y:auto; padding:0 24px 8px; display:flex; flex-direction:column; gap:8px;">
+      <!-- Result selected -->
+      <div style="display:flex; gap:12px; padding:12px; border-radius:12px; border:1.5px solid #DC2626; background:#2A1414; cursor:pointer;">
+        <div style="width:20px; height:20px; border-radius:6px; background:#DC2626; display:flex; align-items:center; justify-content:center; flex-shrink:0; align-self:center;">
+          <span style="color:white; font-size:11px; font-weight:700;">✓</span>
+        </div>
+        <div style="width:40px; height:56px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#2A1414;">
+          <img src="https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; font-weight:600; color:var(--t1);">Inception</div>
+          <div style="font-size:11px; color:var(--t3); margin-top:2px;">Nolan · 2010 · Sci-Fi</div>
+          <div style="font-size:11px; color:var(--t2); margin-top:4px; line-height:1.4;">A thief who steals corporate secrets…</div>
+        </div>
+      </div>
+      <!-- Result unselected -->
+      <div style="display:flex; gap:12px; padding:12px; border-radius:12px; border:1.5px solid var(--border); cursor:pointer;">
+        <div style="width:20px; height:20px; border-radius:6px; border:2px solid var(--border2); flex-shrink:0; align-self:center;"></div>
+        <div style="width:40px; height:56px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#2A1414; display:flex; align-items:center; justify-content:center; font-size:18px;">🎬</div>
+        <div style="flex:1;">
+          <div style="font-size:13px; font-weight:600; color:var(--t1);">Inception (Fan Cut)</div>
+          <div style="font-size:11px; color:var(--t3); margin-top:2px;">2013</div>
+        </div>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:16px 24px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px;">
+      <button style="font-size:13px; color:var(--t3); background:none; border:none; cursor:pointer;">Fermer</button>
+      <div style="display:flex; gap:8px;">
+        <button style="font-size:13px; font-weight:700; padding:8px 16px; border-radius:12px; background:#DC2626; color:white; border:none; cursor:pointer;">Ajouter (1)</button>
+        <button style="font-size:13px; font-weight:700; padding:8px 16px; border-radius:12px; background:var(--surface2); color:var(--t1); border:none; cursor:pointer;">Saisie manuelle →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ MODAL: DETAIL -->
+<div style="margin: 0 auto; max-width: 1400px; padding: 0 24px 40px;">
+  <h2 class="font-display" style="font-size: 22px; font-weight: 700; color: var(--t2); margin-bottom: 16px;">Modal — Détail</h2>
+  <div class="modal" style="position:relative; max-width:360px; margin: 0 auto;">
+    <!-- Cover -->
+    <div style="height:220px; background:#2A1414; position:relative; overflow:hidden;">
+      <img src="https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />
+      <div class="cover-gradient"></div>
+      <button style="position:absolute; top:12px; right:12px; width:32px; height:32px; border-radius:999px; background:rgba(0,0,0,0.45); backdrop-filter:blur(4px); color:white; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px;">✕</button>
+      <div style="position:absolute; bottom:0; left:0; right:0; padding:16px;">
+        <div class="font-display" style="color:white; font-weight:700; font-size:18px; line-height:1.2;">Inception</div>
+        <div style="color:rgba(255,255,255,0.7); font-size:12px; margin-top:3px;">Nolan · 2010</div>
+      </div>
+    </div>
+    <!-- Body -->
+    <div style="padding:20px; overflow-y:auto; max-height:300px;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+        <span class="pill" style="background:#2A1414; color:#DC2626;">🎬 Films</span>
+        <span class="pill" style="background:var(--surface2); color:var(--t2);">Sci-Fi</span>
+        <span class="pill" style="background:rgba(22,163,74,0.18); color:#16A34A;">● Terminé</span>
+      </div>
+      <div style="font-size:11px; color:var(--t3); margin-bottom:16px;">Ajouté le 12/03/2024</div>
+      <!-- Rating -->
+      <div style="margin-bottom:16px; padding:16px; border-radius:16px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2);">
+        <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--t3); margin-bottom:8px;">Ma note</div>
+        <div style="display:flex; gap:4px;">
+          <span style="font-size:26px; cursor:pointer; color:#F59E0B;">★</span>
+          <span style="font-size:26px; cursor:pointer; color:#F59E0B;">★</span>
+          <span style="font-size:26px; cursor:pointer; color:#F59E0B;">★</span>
+          <span style="font-size:26px; cursor:pointer; color:#F59E0B;">★</span>
+          <span style="font-size:26px; cursor:pointer; color:#F59E0B;">★</span>
+        </div>
+      </div>
+      <!-- Status change -->
+      <div style="margin-bottom:0;">
+        <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--t3); margin-bottom:8px;">Changer l'état</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <button style="padding:10px; border-radius:12px; font-size:12px; font-weight:700; background:var(--surface2); color:#9CA3AF; border:1.5px solid #9CA3AF30; cursor:pointer; font-family:'Outfit',sans-serif;">À faire</button>
+          <button style="padding:10px; border-radius:12px; font-size:12px; font-weight:700; background:var(--surface2); color:#D97706; border:1.5px solid #D9770640; cursor:pointer; font-family:'Outfit',sans-serif;">En cours</button>
+          <button style="padding:10px; border-radius:12px; font-size:12px; font-weight:700; background:#16A34A; color:white; border:1.5px solid #16A34A; cursor:pointer; font-family:'Outfit',sans-serif;">Terminé</button>
+          <button style="padding:10px; border-radius:12px; font-size:12px; font-weight:700; background:var(--surface2); color:#DC2626; border:1.5px solid #DC262640; cursor:pointer; font-family:'Outfit',sans-serif;">Abandonné</button>
+        </div>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:16px 20px; border-top:1px solid var(--border); display:flex; gap:12px;">
+      <button style="flex:1; padding:10px; border-radius:12px; font-size:13px; color:var(--t2); background:none; border:1px solid var(--border); cursor:pointer; font-family:'Outfit',sans-serif;">Fermer</button>
+      <button style="flex:1; padding:10px; border-radius:12px; font-size:13px; font-weight:700; color:white; background:#DC2626; border:none; cursor:pointer; font-family:'Outfit',sans-serif;">Modifier</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast example -->
+<div class="toast">✓ "Inception" ajouté !</div>
+
+</body>
+</html>

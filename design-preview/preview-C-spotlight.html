@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Opus — Concept C : Spotlight</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #05050A; --surface: #0C0C18; --surface2: #121220; --hover: #171728;
+    --border: #18182C; --border2: #22223A;
+    --t1: #EEEEFF; --t2: #8888BB; --t3: #44446A;
+    --accent: #6C47FF; --accent-dim: rgba(108,71,255,0.15);
+  }
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--t1);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .mono { font-family: 'Space Mono', monospace; }
+  ::-webkit-scrollbar { width: 3px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* NAV — ultra minimal top strip */
+  .nav { height: 48px; display: flex; align-items: center; padding: 0 32px; gap: 12px; border-bottom: 1px solid var(--border); }
+  .nav-logo { font-size: 15px; font-weight: 700; letter-spacing: -0.04em; }
+  .nav-logo span { color: var(--t3); font-weight: 400; font-size: 13px; margin-left: 8px; }
+  .nav-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .nav-link { font-size: 12px; font-weight: 500; color: var(--t3); text-decoration: none; }
+  .icon-btn { width: 30px; height: 30px; border-radius: 7px; background: var(--surface2); border: 1px solid var(--border); color: var(--t2); font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .add-btn { display: flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 7px; background: var(--accent); color: white; font-size: 12px; font-weight: 700; border: none; cursor: pointer; font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.01em; }
+
+  /* SEARCH HERO */
+  .search-hero { padding: 48px 32px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .search-hero-title { font-size: 13px; font-weight: 600; color: var(--t3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .search-wrap { width: 100%; max-width: 640px; position: relative; margin-top: 8px; }
+  .search-input { width: 100%; background: var(--surface); border: 1.5px solid var(--border2); border-radius: 14px; padding: 16px 20px 16px 52px; font-size: 17px; font-weight: 500; color: var(--t1); font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; transition: border-color 0.2s, box-shadow 0.2s; }
+  .search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,71,255,0.12); }
+  .search-input::placeholder { color: var(--t3); font-weight: 400; }
+  .search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--t3); font-size: 18px; pointer-events: none; }
+  .search-kbd { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); display: flex; gap: 3px; }
+  .kbd { font-family: 'Space Mono', monospace; font-size: 10px; padding: 2px 5px; border-radius: 4px; background: var(--surface2); border: 1px solid var(--border2); color: var(--t3); }
+
+  /* FILTER BAR */
+  .filter-bar { width: 100%; max-width: 640px; display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+  .filter-chip { padding: 5px 13px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: transparent; color: var(--t3); transition: all 0.12s; font-family: 'Space Grotesk', sans-serif; }
+  .filter-chip:hover { border-color: var(--border2); color: var(--t2); }
+  .filter-chip.on { background: var(--accent-dim); border-color: rgba(108,71,255,0.5); color: #A78BFA; }
+
+  /* STATS row */
+  .stats-row { width: 100%; max-width: 640px; display: flex; justify-content: center; gap: 24px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .stat-item { display: flex; align-items: baseline; gap: 5px; }
+  .stat-num { font-size: 20px; font-weight: 700; letter-spacing: -0.04em; font-family: 'Space Mono', monospace; }
+  .stat-label { font-size: 11px; color: var(--t3); font-weight: 500; }
+
+  /* RESULTS */
+  .results { flex: 1; padding: 28px 32px 40px; max-width: 800px; margin: 0 auto; width: 100%; }
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .results-count { font-size: 12px; color: var(--t3); font-weight: 500; }
+  .sort-tabs { display: flex; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+  .sort-tab { padding: 4px 12px; border-radius: 5px; font-size: 11px; font-weight: 600; color: var(--t3); cursor: pointer; border: none; background: transparent; font-family: 'Space Grotesk', sans-serif; }
+  .sort-tab.active { background: var(--surface2); color: var(--t1); }
+
+  /* List item */
+  .list { display: flex; flex-direction: column; }
+  .item { display: flex; align-items: center; gap: 14px; padding: 11px 14px; border-radius: 10px; cursor: pointer; transition: background 0.1s; border: 1px solid transparent; }
+  .item:hover { background: var(--hover); border-color: var(--border); }
+  .item-cover { width: 38px; height: 54px; border-radius: 6px; overflow: hidden; flex-shrink: 0; position: relative; }
+  .item-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .item-cover .fb { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .item-cat-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; }
+  .item-main { flex: 1; min-width: 0; }
+  .item-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.01em; }
+  .item-meta { font-size: 11px; color: var(--t3); margin-top: 2px; font-family: 'Space Mono', monospace; }
+  .item-tags { display: flex; gap: 5px; margin-top: 5px; }
+  .tag { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px; }
+  .item-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .item-status { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .stars { display: flex; gap: 1px; }
+  .s { font-size: 10px; }
+  .item-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.12s; }
+  .item:hover .item-actions { opacity: 1; }
+  .act { width: 26px; height: 26px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); color: var(--t2); font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+  /* Group header */
+  .group-head { display: flex; align-items: center; gap: 8px; padding: 16px 14px 6px; }
+  .group-icon { font-size: 14px; }
+  .group-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--t3); }
+  .group-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* Empty state for offline -->*/
+  .offline-notice { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; background: rgba(108,71,255,0.08); border: 1px solid rgba(108,71,255,0.2); font-size: 12px; color: var(--t2); margin-bottom: 16px; max-width: 640px; margin-left: auto; margin-right: auto; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-logo">Opus <span>carnet culturel</span></div>
+  <div class="nav-right">
+    <a href="index.html" class="nav-link">← Index</a>
+    <div class="icon-btn">☀️</div>
+    <div class="icon-btn">⬆</div>
+    <button class="add-btn">＋ Ajouter</button>
+  </div>
+</nav>
+
+<!-- SEARCH HERO -->
+<div class="search-hero">
+  <div class="search-hero-title">Bibliothèque</div>
+
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input class="search-input" value="inception" />
+    <div class="search-kbd">
+      <span class="kbd">⌘</span><span class="kbd">K</span>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <button class="filter-chip on">Tout</button>
+    <button class="filter-chip on">🎬 Films</button>
+    <button class="filter-chip">📺 Séries</button>
+    <button class="filter-chip">⛩️ Animés</button>
+    <button class="filter-chip">📚 Livres</button>
+    <button class="filter-chip">🎮 Jeux</button>
+    <button class="filter-chip">✓ Terminé</button>
+    <button class="filter-chip">▶ En cours</button>
+    <button class="filter-chip">◯ À faire</button>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-item"><div class="stat-num">247</div><div class="stat-label">œuvres</div></div>
+    <div class="stat-item"><div class="stat-num" style="color:#D97706;">12</div><div class="stat-label">en cours</div></div>
+    <div class="stat-item"><div class="stat-num" style="color:#16A34A;">189</div><div class="stat-label">terminées</div></div>
+    <div class="stat-item"><div class="stat-num" style="color:#52527A;">46</div><div class="stat-label">à faire</div></div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="results">
+  <div class="results-header">
+    <div class="results-count">247 résultats</div>
+    <div class="sort-tabs">
+      <button class="sort-tab active">Récents</button>
+      <button class="sort-tab">A–Z</button>
+      <button class="sort-tab">Année</button>
+      <button class="sort-tab">Note ★</button>
+    </div>
+  </div>
+
+  <div class="list">
+
+    <!-- Group: Films -->
+    <div class="group-head">
+      <span class="group-icon">🎬</span>
+      <span class="group-name">Films</span>
+      <div class="group-line"></div>
+    </div>
+
+    <div class="item">
+      <div class="item-cover" style="background:#2A1414;">
+        <img src="https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg" onerror="this.style.display='none'">
+        <div class="item-cat-bar" style="background:#DC2626;"></div>
+      </div>
+      <div class="item-main">
+        <div class="item-title">Inception</div>
+        <div class="item-meta">Nolan · 2010 · Sci-Fi</div>
+        <div class="item-tags">
+          <span class="tag" style="background:#2A1414;color:#DC2626;">Films</span>
+        </div>
+      </div>
+      <div class="item-right">
+        <div class="stars"><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span></div>
+        <span class="item-status" style="background:rgba(22,163,74,0.18);color:#16A34A;">Terminé</span>
+        <div class="item-actions">
+          <button class="act">✎</button>
+          <button class="act">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="item-cover" style="background:#2A1414;">
+        <div class="fb">🎬</div>
+        <div class="item-cat-bar" style="background:#DC2626;"></div>
+      </div>
+      <div class="item-main">
+        <div class="item-title">The Dark Knight</div>
+        <div class="item-meta">Nolan · 2008 · Action</div>
+      </div>
+      <div class="item-right">
+        <span class="item-status" style="background:rgba(217,119,6,0.18);color:#D97706;">En cours</span>
+        <div class="item-actions">
+          <button class="act">✎</button>
+          <button class="act">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="item-cover" style="background:#2A1414;">
+        <img src="https://m.media-amazon.com/images/M/MV5BNzQzOTk3OTAtNDQ0Zi00ZTVlLTM5YTctZjQ0MmJlNmMzYjVhXkEyXkFqcGdeQXVyNjU0OTQ0OTY@._V1_SX300.jpg" onerror="this.style.display='none'">
+        <div class="item-cat-bar" style="background:#DC2626;"></div>
+      </div>
+      <div class="item-main">
+        <div class="item-title">The Matrix</div>
+        <div class="item-meta">Wachowski · 1999 · Action</div>
+      </div>
+      <div class="item-right">
+        <div class="stars"><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:var(--border2);">★</span></div>
+        <span class="item-status" style="background:rgba(22,163,74,0.18);color:#16A34A;">Terminé</span>
+        <div class="item-actions">
+          <button class="act">✎</button>
+          <button class="act">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="item-cover" style="background:#2A1414;">
+        <div class="fb">🎬</div>
+        <div class="item-cat-bar" style="background:#DC2626;"></div>
+      </div>
+      <div class="item-main">
+        <div class="item-title">Pulp Fiction</div>
+        <div class="item-meta">Tarantino · 1994 · Crime</div>
+      </div>
+      <div class="item-right">
+        <div class="stars"><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span></div>
+        <span class="item-status" style="background:rgba(22,163,74,0.18);color:#16A34A;">Terminé</span>
+        <div class="item-actions">
+          <button class="act">✎</button>
+          <button class="act">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group: Jeux -->
+    <div class="group-head" style="margin-top:8px;">
+      <span class="group-icon">🎮</span>
+      <span class="group-name">Jeux</span>
+      <div class="group-line"></div>
+    </div>
+
+    <div class="item">
+      <div class="item-cover" style="background:#0D1A33;">
+        <div class="fb">🎮</div>
+        <div class="item-cat-bar" style="background:#2563EB;"></div>
+      </div>
+      <div class="item-main">
+        <div class="item-title">Breath of the Wild</div>
+        <div class="item-meta">Nintendo · 2017 · Adventure</div>
+      </div>
+      <div class="item-right">
+        <div class="stars"><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:var(--border2);">★</span></div>
+        <span class="item-status" style="background:rgba(22,163,74,0.18);color:#16A34A;">Terminé</span>
+        <div class="item-actions">
+          <button class="act">✎</button>
+          <button class="act">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="item-cover" style="background:#0D1A33;">
+        <div class="fb">🎮</div>
+        <div class="item-cat-bar" style="background:#2563EB;"></div>
+      </div>
+      <div class="item-main">
+        <div class="item-title">Elden Ring</div>
+        <div class="item-meta">FromSoftware · 2022 · RPG</div>
+      </div>
+      <div class="item-right">
+        <span class="item-status" style="background:rgba(217,119,6,0.18);color:#D97706;">En cours</span>
+        <div class="item-actions">
+          <button class="act">✎</button>
+          <button class="act">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group: Séries -->
+    <div class="group-head" style="margin-top:8px;">
+      <span class="group-icon">📺</span>
+      <span class="group-name">Séries</span>
+      <div class="group-line"></div>
+    </div>
+
+    <div class="item">
+      <div class="item-cover" style="background:#0E2518;">
+        <div class="fb">📺</div>
+        <div class="item-cat-bar" style="background:#16A34A;"></div>
+      </div>
+      <div class="item-main">
+        <div class="item-title">Breaking Bad</div>
+        <div class="item-meta">Gilligan · 2008 · Drama</div>
+      </div>
+      <div class="item-right">
+        <div class="stars"><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span><span class="s" style="color:#F59E0B;">★</span></div>
+        <span class="item-status" style="background:rgba(22,163,74,0.18);color:#16A34A;">Terminé</span>
+        <div class="item-actions">
+          <button class="act">✎</button>
+          <button class="act">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="item-cover" style="background:#0E2518;">
+        <div class="fb">📺</div>
+        <div class="item-cat-bar" style="background:#16A34A;"></div>
+      </div>
+      <div class="item-main">
+        <div class="item-title">The Last of Us</div>
+        <div class="item-meta">Mazin · 2023 · Drama</div>
+      </div>
+      <div class="item-right">
+        <span class="item-status" style="background:rgba(217,119,6,0.18);color:#D97706;">En cours</span>
+        <div class="item-actions">
+          <button class="act">✎</button>
+          <button class="act">✕</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

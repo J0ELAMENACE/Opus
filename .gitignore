@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+app/dist/
+
+# Backups de session
+app/index.backup.*.html
+
+# Données utilisateur locales
+*.json
+!app/package.json
+!app/package-lock.json
+
+# Logs de debug
+opus-debug.log
+
+# Dossiers internes Claude
+.claude/
+
+# Artifacts temporaires
+graphify-out/

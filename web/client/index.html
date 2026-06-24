@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opus</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{display:['"Playfair Display"','Georgia','serif'],body:['Outfit','sans-serif']}}}}</script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+  :root {
+    --bg:#F7F4EF; --surface:#ffffff; --surface2:#F7F4EF; --hover:#EDE9E3;
+    --border:#E8E3DC; --border2:#D1C9BE;
+    --t1:#1A1814; --t2:#6B6560; --t3:#9CA3AF;
+    --shimmer1:#EDE9E3; --shimmer2:#E2DDD6;
+  }
+  body.dark {
+    --bg:#111009; --surface:#1C1A17; --surface2:#222019; --hover:#2A2824;
+    --border:#2E2B27; --border2:#3D3A35;
+    --t1:#F0EDE8; --t2:#A09890; --t3:#6B6560;
+    --shimmer1:#252220; --shimmer2:#1E1C19;
+  }
+
+  body { font-family:'Outfit',sans-serif; background:var(--bg); color:var(--t1); min-height:100vh; transition:background 0.2s, color 0.2s; }
+
+  .card-lift { transition:transform 0.25s ease,box-shadow 0.25s ease; }
+  .card-lift:hover { transform:translateY(-5px); box-shadow:0 24px 48px rgba(0,0,0,0.18); }
+  .cover-gradient { background:linear-gradient(to top,rgba(0,0,0,0.82) 0%,rgba(0,0,0,0.25) 55%,transparent 100%); }
+  .modal-in { animation:modalIn 0.22s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes modalIn { from{opacity:0;transform:scale(0.96) translateY(10px)} to{opacity:1;transform:none} }
+  .backdrop-in { animation:fadeIn 0.18s ease; }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .toast-in { animation:toastIn 0.3s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes toastIn { from{opacity:0;transform:translateY(14px) scale(0.96)} to{opacity:1;transform:none} }
+  .star-btn { cursor:pointer; transition:transform 0.1s,color 0.1s; line-height:1; }
+  .star-btn:hover { transform:scale(1.25); }
+  .seg-btn { transition:all 0.15s; }
+  ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+  .shimmer { background:linear-gradient(90deg,var(--shimmer1) 25%,var(--shimmer2) 50%,var(--shimmer1) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+  @keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
+  input,select,textarea { font-family:'Outfit',sans-serif; }
+  input:focus,select:focus,textarea:focus { outline:none; }
+  .action-btn { opacity:0; transition:opacity 0.15s; }
+  .card-root:hover .action-btn { opacity:1; }
+  .dm-toggle { cursor:pointer; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; transition:all 0.15s; border:1.5px solid var(--border); background:var(--surface2); color:var(--t2); }
+  .dm-toggle:hover { background:var(--hover); color:var(--t1); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo, useRef, createContext, useContext } = React;
+
+/* ─── CONFIG ── */
+const API      = 'http://192.168.226.152/api';
+const OMDB_KEY = 'f9674bd';
+const RAWG_KEY = '21c8b94ddeba47c8a8411a221b374c83';
+
+/* ─── THEME CONTEXT ── */
+const DarkCtx = createContext(false);
+const useDark = () => useContext(DarkCtx);
+
+/* helper — retourne les couleurs de surface selon le thème */
+function useT() {
+  const dm = useDark();
+  return {
+    bg:       dm ? '#111009' : '#F7F4EF',
+    surface:  dm ? '#1C1A17' : '#ffffff',
+    surface2: dm ? '#222019' : '#F7F4EF',
+    hover:    dm ? '#2A2824' : '#EDE9E3',
+    border:   dm ? '#2E2B27' : '#E8E3DC',
+    border2:  dm ? '#3D3A35' : '#D1C9BE',
+    t1:       dm ? '#F0EDE8' : '#1A1814',
+    t2:       dm ? '#A09890' : '#6B6560',
+    t3:       dm ? '#6B6560' : '#9CA3AF',
+  };
+}
+
+/* ─── CONSTANTS ── */
+const CATS = {
+  movie:  { label:'Films',  icon:'🎬', color:'#DC2626', light:'#FEF2F2', lightDark:'#2A1212', creator:'Réalisateur' },
+  series: { label:'Séries', icon:'📺', color:'#16A34A', light:'#F0FDF4', lightDark:'#0E2318', creator:'Créateur'    },
+  anime:  { label:'Animés', icon:'⛩️', color:'#D97706', light:'#FFFBEB', lightDark:'#2A1F07', creator:'Studio'      },
+  book:   { label:'Livres', icon:'📚', color:'#7C3AED', light:'#F5F3FF', lightDark:'#1D1230', creator:'Auteur'      },
+  game:   { label:'Jeux',   icon:'🎮', color:'#2563EB', light:'#EFF6FF', lightDark:'#0D1A33', creator:'Studio'      },
+};
+const STATUSES = {
+  todo:    { label:'À faire',   color:'#9CA3AF', bg:'#F9FAFB', bgDark:'#1A1A1A' },
+  doing:   { label:'En cours',  color:'#D97706', bg:'#FFFBEB', bgDark:'#1F1507' },
+  done:    { label:'Terminé',   color:'#16A34A', bg:'#F0FDF4', bgDark:'#0A1F10' },
+  dropped: { label:'Abandonné', color:'#DC2626', bg:'#FEF2F2', bgDark:'#1F0A0A' },
+};
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+/* ─── API SEARCH ── */
+async function searchMovies(q, limit=5) {
+  try {
+    const r = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&s=${encodeURIComponent(q)}&type=movie`);
+    const d = await r.json();
+    if (!d.Search) return [];
+    return Promise.all(d.Search.slice(0, limit).map(async item => {
+      try {
+        const r2 = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${item.imdbID}`);
+        const dd = await r2.json();
+        return { title:dd.Title, creator:dd.Director!=='N/A'?dd.Director:null, year:dd.Year?.slice(0,4)||null, cover:dd.Poster!=='N/A'?dd.Poster:null, genre:dd.Genre!=='N/A'?dd.Genre?.split(',')[0].trim():null, description:dd.Plot!=='N/A'?dd.Plot:null };
+      } catch { return { title:item.Title, year:item.Year?.slice(0,4), cover:item.Poster!=='N/A'?item.Poster:null, creator:null, genre:null, description:null }; }
+    }));
+  } catch { return []; }
+}
+async function searchSeries(q, limit=5) {
+  try {
+    const r = await fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(q)}`);
+    const d = await r.json();
+    return d.slice(0, limit).map(({ show:s }) => ({ title:s.name, creator:null, year:s.premiered?.slice(0,4)||null, cover:s.image?.original||s.image?.medium||null, genre:s.genres?.[0]||null, description:s.summary?.replace(/<[^>]*>/g,'').slice(0,200)||null }));
+  } catch { return []; }
+}
+async function searchAnime(q, limit=5) {
+  try {
+    const r = await fetch('https://graphql.anilist.co', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ query:`query($s:String,$n:Int){Page(perPage:$n){media(search:$s,type:ANIME,sort:POPULARITY_DESC){title{romaji english}startDate{year}genres coverImage{extraLarge large}description(asHtml:false)}}}`, variables:{s:q,n:limit} }) });
+    const d = await r.json();
+    return (d.data?.Page?.media||[]).map(m => ({ title:m.title.english||m.title.romaji, creator:null, year:m.startDate?.year?.toString()||null, cover:m.coverImage?.extraLarge||m.coverImage?.large||null, genre:m.genres?.[0]||null, description:m.description?.replace(/<[^>]*>/g,'').slice(0,200)||null }));
+  } catch { return []; }
+}
+async function searchBooks(q, limit=5) {
+  try {
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=${limit}&orderBy=relevance&langRestrict=fr`);
+    const d = await r.json();
+    if (!d.items) return [];
+    return d.items.map(b => {
+      const info = b.volumeInfo||{};
+      const cover = info.imageLinks?.extraLarge||info.imageLinks?.large||info.imageLinks?.thumbnail||null;
+      return { title:info.title||null, creator:info.authors?.[0]||null, year:info.publishedDate?.slice(0,4)||null, cover:cover?cover.replace('http://','https://').replace('&zoom=1','&zoom=3'):null, genre:info.categories?.[0]?.split('/')[0].trim()||null, description:info.description?.slice(0,200)||null };
+    });
+  } catch { return []; }
+}
+async function searchGames(q, limit=5) {
+  try {
+    const r = await fetch(`https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(q)}&page_size=${limit}`);
+    const d = await r.json();
+    return (d.results||[]).map(g => ({ title:g.name, creator:null, year:g.released?.slice(0,4)||null, cover:g.background_image||null, genre:g.genres?.[0]?.name||null, description:null }));
+  } catch { return []; }
+}
+const SEARCH_FNS = { movie:searchMovies, series:searchSeries, anime:searchAnime, book:searchBooks, game:searchGames };
+
+/* ─── STORAGE ── */
+async function loadItems() {
+  if (API) { try { const r=await fetch(`${API}/items`); return r.json(); } catch { return []; } }
+  try { return JSON.parse(localStorage.getItem('opus-v2')||'[]'); } catch { return []; }
+}
+function persist(items) { localStorage.setItem('opus-v2',JSON.stringify(items)); }
+async function saveNew(item) {
+  if (API) { await fetch(`${API}/items`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)}); return; }
+  const all=await loadItems(); all.unshift(item); persist(all);
+}
+async function updateItem(item) {
+  if (API) { await fetch(`${API}/items/${item.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)}); return; }
+  const all=await loadItems(); const idx=all.findIndex(i=>i.id===item.id); if(idx>=0) all[idx]=item; persist(all);
+}
+async function deleteItem(id) {
+  if (API) { await fetch(`${API}/items/${id}`,{method:'DELETE'}); return; }
+  const all=await loadItems(); persist(all.filter(i=>i.id!==id));
+}
+
+/* ─── STAR RATING ── */
+function StarRating({ value=0, onChange, size='md' }) {
+  const [hover, setHover] = useState(0);
+  const sz = size==='lg' ? '1.8rem' : '1.2rem';
+  return (
+    <div style={{display:'flex',gap:'2px'}}>
+      {[1,2,3,4,5].map(n => (
+        <span key={n} className="star-btn select-none"
+          style={{fontSize:sz, color: n<=(hover||value) ? '#F59E0B' : 'var(--border2)'}}
+          onClick={() => onChange && onChange(n===value?0:n)}
+          onMouseEnter={() => onChange && setHover(n)}
+          onMouseLeave={() => onChange && setHover(0)}>★</span>
+      ))}
+    </div>
+  );
+}
+
+/* ─── TOAST ── */
+function Toast({ msg, visible }) {
+  if (!visible) return null;
+  return <div className="toast-in fixed bottom-6 right-6 z-50 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-2xl pointer-events-none" style={{background:'var(--t1)'}}>{msg}</div>;
+}
+
+/* ─── CARD ── */
+function Card({ item, onOpen, onEdit, onDelete }) {
+  const dm  = useDark();
+  const cat = CATS[item.cat]||CATS.movie;
+  const st  = STATUSES[item.status]||STATUSES.todo;
+  const catLight = dm ? cat.lightDark : cat.light;
+  const stBg     = dm ? st.bgDark    : st.bg;
+  return (
+    <div className="card-root card-lift rounded-2xl overflow-hidden cursor-pointer relative"
+      style={{background:'var(--surface)', border:'1px solid var(--border)'}}
+      onClick={() => onOpen(item.id)}>
+      <div className="relative overflow-hidden" style={{aspectRatio:'2/3', background:catLight}}>
+        {item.cover ? <img src={item.cover} alt={item.title} loading="lazy" className="w-full h-full object-cover" onError={e=>{e.currentTarget.style.display='none';e.currentTarget.nextSibling.style.display='flex';}} /> : null}
+        <div className="w-full h-full items-center justify-center text-5xl absolute inset-0" style={{background:catLight, display:item.cover?'none':'flex'}}>{cat.icon}</div>
+        {item.cover && <div className="cover-gradient absolute inset-0 pointer-events-none" />}
+        <div className="absolute top-2 left-2">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{background:stBg, color:st.color, border:`1px solid ${st.color}40`}}>{st.label}</span>
+        </div>
+        <div className="action-btn absolute top-2 right-2 flex gap-1" onClick={e=>e.stopPropagation()}>
+          <button onClick={()=>onEdit(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-colors" style={{background:'rgba(255,255,255,0.9)',backdropFilter:'blur(4px)',color:'#374151'}}>✎</button>
+          <button onClick={()=>onDelete(item.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-colors" style={{background:'rgba(255,255,255,0.9)',backdropFilter:'blur(4px)',color:'#374151'}}>✕</button>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{background:cat.color}} />
+      </div>
+      <div className="p-3">
+        <div className="text-[13px] font-semibold truncate leading-snug mb-0.5" style={{color:'var(--t1)'}} title={item.title}>{item.title}</div>
+        <div className="text-[11px] truncate" style={{color:'var(--t3)'}}>{[item.creator,item.year].filter(Boolean).join(' · ')}</div>
+        {item.genre && <div className="mt-2"><span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{background:catLight, color:cat.color}}>{item.genre}</span></div>}
+        {item.status==='done' && item.rating>0 && (
+          <div className="mt-1.5 flex">{[1,2,3,4,5].map(n=><span key={n} style={{fontSize:'11px',color:n<=item.rating?'#F59E0B':'var(--border2)'}}>★</span>)}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── SEARCH MODAL ── */
+function SearchModal({ open, initialCat, onClose, onAddMany, onManual }) {
+  const dm = useDark();
+  const T  = useT();
+  const [cat,      setCat]      = useState(initialCat||'movie');
+  const [query,    setQuery]    = useState('');
+  const [results,  setResults]  = useState([]);
+  const [phase,    setPhase]    = useState('idle');
+  const [limit,    setLimit]    = useState(5);
+  const [selected, setSelected] = useState(new Set());
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (open) { setCat(initialCat||'movie'); setQuery(''); setResults([]); setPhase('idle'); setSelected(new Set()); setTimeout(()=>inputRef.current?.focus(),120); }
+  }, [open, initialCat]);
+
+  const doSearch = async () => {
+    if (!query.trim()) return;
+    setPhase('loading'); setResults([]); setSelected(new Set());
+    try { const res=await SEARCH_FNS[cat](query.trim(),limit); setResults(res); setPhase(res.length?'done':'empty'); }
+    catch { setPhase('error'); }
+  };
+
+  const toggleSelect = i => setSelected(prev => { const n=new Set(prev); n.has(i)?n.delete(i):n.add(i); return n; });
+  const handleAddSelected = () => {
+    onAddMany([...selected].map(i=>({...results[i],cat,id:uid(),status:'todo',rating:0,added:Date.now()})));
+    setSelected(new Set());
+  };
+
+  if (!open) return null;
+  const catObj = CATS[cat];
+  const catLight = dm ? catObj.lightDark : catObj.light;
+
+  return (
+    <div className="backdrop-in fixed inset-0 z-40 flex items-center justify-center p-4"
+      style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)'}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-in rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col" style={{maxHeight:'90vh',background:T.surface,border:`1px solid ${T.border}`}}>
+
+        <div className="p-6 pb-4">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-display text-xl font-bold" style={{color:T.t1}}>Ajouter une œuvre</h2>
+            <button onClick={onClose} className="text-lg leading-none transition-colors" style={{color:T.t3}}>✕</button>
+          </div>
+          <div className="flex gap-1.5 flex-wrap mb-4">
+            {Object.entries(CATS).map(([k,v]) => (
+              <button key={k} onClick={()=>{setCat(k);setResults([]);setPhase('idle');setSelected(new Set());}}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                style={cat===k?{background:v.color,color:'white'}:{background:dm?v.lightDark:v.light,color:v.color}}>
+                {v.icon} {v.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input ref={inputRef} value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doSearch()}
+              placeholder="Rechercher…"
+              className="flex-1 rounded-xl px-4 py-2.5 text-sm transition-colors"
+              style={{background:T.surface2,border:`1.5px solid ${T.border}`,color:T.t1}} />
+            <select value={limit} onChange={e=>setLimit(Number(e.target.value))}
+              className="rounded-xl px-3 py-2.5 text-sm cursor-pointer text-center appearance-none"
+              style={{background:T.surface2,border:`1.5px solid ${T.border}`,color:T.t1}}>
+              {[5,10,15,20].map(n=><option key={n} value={n}>{n}</option>)}
+            </select>
+            <button onClick={doSearch} disabled={phase==='loading'}
+              className="px-4 py-2.5 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-50 active:scale-95"
+              style={{background:catObj.color}}>
+              {phase==='loading'?'⟳':'Chercher'}
+            </button>
+          </div>
+          {phase==='done' && results.length>0 && (
+            <div className="flex items-center justify-between mt-3 pt-3" style={{borderTop:`1px solid ${T.border}`}}>
+              <button onClick={()=>setSelected(selected.size===results.length?new Set():new Set(results.map((_,i)=>i)))}
+                className="text-xs font-medium transition-colors" style={{color:T.t2}}>
+                {selected.size===results.length?'Tout désélectionner':'Tout sélectionner'}
+              </button>
+              <span className="text-xs" style={{color:T.t3}}>{results.length} résultat{results.length>1?'s':''} · coche pour sélectionner</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-2">
+          {phase==='loading' && [0,1,2].map(i=>(
+            <div key={i} className="flex gap-3 p-3 rounded-xl" style={{border:`1px solid ${T.border}`}}>
+              <div className="shimmer w-10 h-14 rounded-lg flex-shrink-0" />
+              <div className="flex-1 space-y-2 pt-1"><div className="shimmer h-3 rounded-full w-3/4" /><div className="shimmer h-3 rounded-full w-1/2" /></div>
+            </div>
+          ))}
+          {phase==='empty'  && <div className="text-center py-10 text-sm" style={{color:T.t3}}>Aucun résultat. Essaie un autre terme.</div>}
+          {phase==='error'  && <div className="text-center py-10 text-sm text-red-400">Erreur réseau. Utilise la saisie manuelle.</div>}
+          {phase==='idle'   && <div className="text-center py-10 text-sm" style={{color:T.t3}}>Tape un titre et lance la recherche.</div>}
+          {results.map((r,i) => {
+            const isSel = selected.has(i);
+            return (
+              <div key={i} className="flex gap-3 p-3 rounded-xl cursor-pointer transition-all"
+                style={isSel?{borderColor:catObj.color,background:catLight,border:`1.5px solid ${catObj.color}`}:{border:`1.5px solid ${T.border}`,background:'transparent'}}
+                onClick={()=>toggleSelect(i)}>
+                <div className="flex-shrink-0 self-center">
+                  <div className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
+                    style={isSel?{background:catObj.color,borderColor:catObj.color}:{borderColor:T.border2}}>
+                    {isSel && <span className="text-white text-[11px] font-bold leading-none">✓</span>}
+                  </div>
+                </div>
+                <div className="w-10 h-14 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center text-xl" style={{background:catLight}}>
+                  {r.cover ? <img src={r.cover} alt="" className="w-full h-full object-cover" onError={e=>{e.target.style.display='none';}} /> : catObj.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-semibold leading-tight" style={{color:T.t1}}>{r.title}</div>
+                  <div className="text-xs mt-0.5" style={{color:T.t3}}>{[r.creator,r.year,r.genre].filter(Boolean).join(' · ')}</div>
+                  {r.description && <div className="text-xs mt-1 line-clamp-2 leading-relaxed" style={{color:T.t2}}>{r.description}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="px-6 py-4 flex items-center justify-between gap-3" style={{borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} className="text-sm transition-colors flex-shrink-0" style={{color:T.t3}}>Fermer</button>
+          <div className="flex gap-2 flex-1 justify-end">
+            {selected.size>0 && (
+              <button onClick={handleAddSelected} className="text-sm font-semibold px-4 py-2 rounded-xl text-white transition-all active:scale-95 flex-shrink-0" style={{background:catObj.color}}>
+                Ajouter la sélection ({selected.size})
+              </button>
+            )}
+            <button onClick={()=>onManual(cat)} className="text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex-shrink-0" style={{background:T.surface2,color:T.t1}}>
+              Saisie manuelle →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── ADD/EDIT MODAL ── */
+function AddEditModal({ open, item, defaultCat, onClose, onSave }) {
+  const dm = useDark();
+  const T  = useT();
+  const blank = { cat:defaultCat||'movie', title:'', creator:'', year:'', cover:'', genre:'', status:'todo', rating:0, note:'' };
+  const [form, setForm] = useState(blank);
+
+  useEffect(() => {
+    if (!open) return;
+    if (item) setForm({ cat:item.cat, title:item.title, creator:item.creator||'', year:item.year||'', cover:item.cover||'', genre:item.genre||'', status:item.status, rating:item.rating||0, note:item.note||'' });
+    else setForm({...blank, cat:defaultCat||'movie'});
+  }, [open, item, defaultCat]);
+
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const handleSave = () => {
+    if (!form.title.trim()) return;
+    onSave({ id:item?.id||uid(), cat:form.cat, title:form.title.trim(), creator:form.creator.trim()||null, year:form.year.trim()||null, cover:form.cover.trim()||null, genre:form.genre.trim()||null, status:form.status, rating:form.status==='done'?(form.rating||0):0, note:form.note.trim()||null, added:item?.added||Date.now() });
+  };
+
+  if (!open) return null;
+  const catObj = CATS[form.cat];
+  const inputStyle = { background:T.surface2, border:`1.5px solid ${T.border}`, color:T.t1, borderRadius:'12px', width:'100%', padding:'9px 12px', fontSize:'0.85rem', transition:'border-color 0.15s' };
+  const labelStyle = { display:'block', fontSize:'10px', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.1em', color:T.t3, marginBottom:'5px' };
+
+  return (
+    <div className="backdrop-in fixed inset-0 z-40 flex items-center justify-center p-4"
+      style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)'}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-in rounded-3xl w-full max-w-md shadow-2xl flex flex-col" style={{maxHeight:'92vh',background:T.surface,border:`1px solid ${T.border}`}}>
+        <div className="p-6 overflow-y-auto flex-1">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-display text-xl font-bold" style={{color:T.t1}}>{item?'Modifier':'Ajouter manuellement'}</h2>
+            <button onClick={onClose} className="text-lg leading-none" style={{color:T.t3}}>✕</button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label style={labelStyle}>Catégorie</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {Object.entries(CATS).map(([k,v]) => (
+                  <button key={k} onClick={()=>set('cat',k)} className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                    style={form.cat===k?{background:v.color,color:'white'}:{background:dm?v.lightDark:v.light,color:v.color}}>
+                    {v.icon} {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div><label style={labelStyle}>Titre *</label><input value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Titre…" style={inputStyle} /></div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+              <div><label style={labelStyle}>{catObj.creator}</label><input value={form.creator} onChange={e=>set('creator',e.target.value)} placeholder="Nom…" style={inputStyle} /></div>
+              <div><label style={labelStyle}>Année</label><input value={form.year} onChange={e=>set('year',e.target.value)} placeholder="2024" style={inputStyle} /></div>
+            </div>
+            <div><label style={labelStyle}>Genre</label><input value={form.genre} onChange={e=>set('genre',e.target.value)} placeholder="Action, RPG, Thriller…" style={inputStyle} /></div>
+            <div><label style={labelStyle}>URL Couverture</label><input value={form.cover} onChange={e=>set('cover',e.target.value)} placeholder="https://…" style={inputStyle} /></div>
+            <div>
+              <label style={labelStyle}>État</label>
+              <div className="flex gap-2 flex-wrap">
+                {Object.entries(STATUSES).map(([k,v]) => (
+                  <button key={k} onClick={()=>set('status',k)} className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
+                    style={form.status===k?{background:v.color,color:'white',borderColor:v.color}:{color:v.color,borderColor:v.color+'50',background:'transparent'}}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {form.status==='done' && (
+              <div><label style={labelStyle}>Note</label><StarRating value={form.rating} onChange={v=>set('rating',v)} size="lg" /></div>
+            )}
+            <div><label style={labelStyle}>Note personnelle</label>
+              <textarea value={form.note} onChange={e=>set('note',e.target.value)} placeholder="Recommandé par… / Contexte…" rows={3}
+                style={{...inputStyle, resize:'vertical', minHeight:'60px'}} />
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-4 flex gap-3 justify-end" style={{borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm transition-all" style={{color:T.t2,border:`1px solid ${T.border}`}}>Annuler</button>
+          <button onClick={handleSave} disabled={!form.title.trim()} className="px-5 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 active:scale-95" style={{background:catObj.color}}>Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── DETAIL MODAL ── */
+function DetailModal({ open, item, onClose, onEdit, onUpdate }) {
+  const dm  = useDark();
+  const T   = useT();
+  if (!open||!item) return null;
+  const cat = CATS[item.cat]||CATS.movie;
+  const st  = STATUSES[item.status]||STATUSES.todo;
+  const catLight = dm ? cat.lightDark : cat.light;
+
+  return (
+    <div className="backdrop-in fixed inset-0 z-40 flex items-center justify-center p-4"
+      style={{background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)'}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-in rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col" style={{maxHeight:'92vh',background:T.surface,border:`1px solid ${T.border}`}}>
+        <div className="relative flex-shrink-0" style={{height:'220px',background:catLight}}>
+          {item.cover ? <img src={item.cover} alt={item.title} className="w-full h-full object-cover" onError={e=>{e.target.style.display='none';}} /> : <div className="w-full h-full flex items-center justify-center text-7xl">{cat.icon}</div>}
+          {item.cover && <div className="cover-gradient absolute inset-0 pointer-events-none" />}
+          <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-sm text-white transition-colors" style={{background:'rgba(0,0,0,0.4)',backdropFilter:'blur(4px)'}}>✕</button>
+          {item.cover && (
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <div className="font-display text-white font-bold text-lg leading-tight">{item.title}</div>
+              {(item.creator||item.year) && <div className="text-white/75 text-xs mt-0.5">{[item.creator,item.year].filter(Boolean).join(' · ')}</div>}
+            </div>
+          )}
+        </div>
+        <div className="overflow-y-auto flex-1 p-5">
+          {!item.cover && (
+            <div className="mb-4">
+              <div className="font-display font-bold text-lg leading-tight" style={{color:T.t1}}>{item.title}</div>
+              {(item.creator||item.year) && <div className="text-sm mt-0.5" style={{color:T.t2}}>{[item.creator,item.year].filter(Boolean).join(' · ')}</div>}
+            </div>
+          )}
+          <div className="flex gap-2 flex-wrap mb-4 mt-2">
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full" style={{background:catLight,color:cat.color}}>{cat.icon} {cat.label}</span>
+            {item.genre && <span className="text-[11px] font-bold px-3 py-1 rounded-full" style={{background:T.surface2,color:T.t2}}>{item.genre}</span>}
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5" style={{background:dm?st.bgDark:st.bg,color:st.color}}>
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{background:st.color}} />{st.label}
+            </span>
+          </div>
+          <div className="text-[11px] mb-4" style={{color:T.t3}}>Ajouté le {new Date(item.added).toLocaleDateString('fr-FR')}</div>
+          {item.status==='done' && (
+            <div className="mb-4 p-4 rounded-2xl" style={{background:dm?'#1F1507':'#FFFBEB',border:'1px solid #FDE68A'}}>
+              <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{color:T.t3}}>Ma note</div>
+              <StarRating value={item.rating||0} onChange={v=>onUpdate({...item,rating:v})} size="lg" />
+            </div>
+          )}
+          <div className="mb-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{color:T.t3}}>Changer l'état</div>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(STATUSES).map(([k,v]) => (
+                <button key={k} onClick={()=>onUpdate({...item,status:k,rating:k==='done'?item.rating:0})}
+                  className="py-2.5 rounded-xl text-xs font-semibold border transition-all active:scale-95"
+                  style={item.status===k?{background:v.color,color:'white',borderColor:v.color}:{color:v.color,borderColor:v.color+'40',background:dm?v.bgDark:v.bg}}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {item.note && (
+            <div className="p-4 rounded-2xl" style={{background:T.surface2,border:`1px solid ${T.border}`}}>
+              <p className="text-xs italic leading-relaxed" style={{color:T.t2}}>{item.note}</p>
+            </div>
+          )}
+        </div>
+        <div className="px-5 pb-5 pt-3 flex gap-3" style={{borderTop:`1px solid ${T.border}`}}>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm transition-all" style={{border:`1px solid ${T.border}`,color:T.t2}}>Fermer</button>
+          <button onClick={()=>onEdit(item.id)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95" style={{background:cat.color}}>Modifier</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── APP ── */
+function App() {
+  const [items,      setItems]      = useState([]);
+  const [fCat,       setFCat]       = useState('all');
+  const [fSt,        setFSt]        = useState('all');
+  const [fLetter,    setFLetter]    = useState('all');
+  const [fYear,      setFYear]      = useState('all');
+  const [sort,       setSort]       = useState('added');
+  const [query,      setQuery]      = useState('');
+  const [modal,      setModal]      = useState(null);
+  const [editItem,   setEditItem]   = useState(null);
+  const [detailItem, setDetailItem] = useState(null);
+  const [manualCat,  setManualCat]  = useState('movie');
+  const [toast,      setToast]      = useState({ msg:'', on:false });
+  const [dm,         setDm]         = useState(() => localStorage.getItem('opus-dm')==='1');
+
+  /* dark mode persistence */
+  useEffect(() => {
+    document.body.classList.toggle('dark', dm);
+    localStorage.setItem('opus-dm', dm?'1':'0');
+  }, [dm]);
+
+  /* Escape */
+  useEffect(() => {
+    const h = e => { if (e.key==='Escape') setModal(null); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
+
+  const refresh = useCallback(async () => { const data=await loadItems(); setItems(data); }, []);
+  useEffect(() => { refresh(); }, []);
+
+  const showToast = msg => { setToast({msg,on:true}); setTimeout(()=>setToast(t=>({...t,on:false})),2600); };
+
+  const filtered = useMemo(() => {
+    let list = items.filter(it => {
+      if (fCat!=='all'    && it.cat!==fCat) return false;
+      if (fSt!=='all'     && it.status!==fSt) return false;
+      if (fLetter!=='all' && it.title?.[0]?.toUpperCase()!==fLetter) return false;
+      if (fYear!=='all'   && it.year!==fYear) return false;
+      if (query && !it.title.toLowerCase().includes(query.toLowerCase())) return false;
+      return true;
+    });
+    if (sort==='alpha') list.sort((a,b)=>a.title.localeCompare(b.title,'fr'));
+    else if (sort==='year') list.sort((a,b)=>(b.year||0)-(a.year||0));
+    else list.sort((a,b)=>b.added-a.added);
+    return list;
+  }, [items, fCat, fSt, fLetter, fYear, sort, query]);
+
+  /* lettres et années présentes dans la bibliothèque */
+  const usedLetters = useMemo(() => new Set(items.map(i => i.title?.[0]?.toUpperCase()).filter(Boolean)), [items]);
+  const availableYears = useMemo(() => [...new Set(items.map(i=>i.year).filter(Boolean))].sort((a,b)=>b-a), [items]);
+
+  const stats = useMemo(() => ({ total:items.length, doing:items.filter(i=>i.status==='doing').length, done:items.filter(i=>i.status==='done').length }), [items]);
+
+  const handleAdd     = async item => { await saveNew(item); await refresh(); setModal(null); showToast(`"${item.title}" ajouté !`); };
+  const handleAddMany = async its  => {
+    for (const it of its) await saveNew(it);
+    await refresh();
+    setModal(null);
+    showToast(its.length===1 ? `"${its[0].title}" ajouté !` : `${its.length} œuvres ajoutées !`);
+  };
+  const handleSave    = async item => {
+    if (editItem) { await updateItem(item); showToast('Modifié !'); }
+    else          { await saveNew(item);    showToast(`"${item.title}" ajouté !`); }
+    await refresh(); setModal(null); setEditItem(null);
+  };
+  const handleDelete  = async id => {
+    if (!confirm('Supprimer cette œuvre ?')) return;
+    await deleteItem(id); await refresh(); showToast('Supprimé.');
+  };
+  const handleEdit    = id => { setEditItem(items.find(i=>i.id===id)); setDetailItem(null); setModal('add'); };
+  const handleUpdate  = async updated => { await updateItem(updated); await refresh(); setDetailItem(updated); };
+  const openDetail    = id => { setDetailItem(items.find(i=>i.id===id)); setModal('detail'); };
+  const openManual    = cat => { setManualCat(cat); setEditItem(null); setModal('add'); };
+
+  /* ── EXPORT ── */
+  const handleExport = () => {
+    const data = JSON.stringify(items, null, 2);
+    const blob  = new Blob([data], { type: 'application/json' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    const date  = new Date().toISOString().slice(0,10);
+    a.href      = url;
+    a.download  = `opus-backup-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`${items.length} œuvres exportées !`);
+  };
+
+  /* ── IMPORT ── */
+  const importRef = useRef(null);
+  const handleImport = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (!Array.isArray(imported)) { showToast('Fichier invalide.'); return; }
+        const existingIds = new Set(items.map(i => i.id));
+        const toAdd = imported.filter(i => i.id && i.title && !existingIds.has(i.id));
+        if (toAdd.length === 0) { showToast('Aucune nouvelle œuvre à importer.'); return; }
+        for (const it of toAdd) await saveNew(it);
+        await refresh();
+        showToast(`${toAdd.length} œuvre${toAdd.length>1?'s':''} importée${toAdd.length>1?'s':''} !`);
+      } catch { showToast('Erreur de lecture du fichier.'); }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <DarkCtx.Provider value={dm}>
+      <div style={{minHeight:'100vh', background:'var(--bg)'}}>
+
+        {/* HEADER */}
+        <header style={{background:'var(--surface)', borderBottom:'1px solid var(--border)'}} className="sticky top-0 z-30">
+          <div className="max-w-7xl mx-auto px-5 h-[60px] flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <img src="data:image/png;base64,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" alt="Opus" style={{height:'38px',width:'38px',objectFit:'contain'}} />
+              <span className="hidden sm:block text-xs font-medium" style={{color:'var(--t3)'}}>— carnet culturel</span>
+            </div>
+            <div className="flex items-center gap-3 rounded-xl px-4 py-2 text-xs" style={{background:'var(--surface2)',border:'1px solid var(--border)'}}>
+              <span className="font-bold text-sm" style={{color:'var(--t1)'}}>{stats.total}</span>
+              <span style={{color:'var(--border2)'}}>·</span>
+              <span style={{color:STATUSES.doing.color}}>⬤ {stats.doing} en cours</span>
+              <span style={{color:'var(--border2)'}}>·</span>
+              <span style={{color:STATUSES.done.color}}>⬤ {stats.done} terminés</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Import caché */}
+              <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
+              {/* Export */}
+              <button onClick={handleExport} className="dm-toggle" title="Exporter la bibliothèque">⬆</button>
+              {/* Import */}
+              <button onClick={()=>importRef.current?.click()} className="dm-toggle" title="Importer une bibliothèque">⬇</button>
+              {/* Dark mode toggle */}
+              <button className="dm-toggle" onClick={()=>setDm(d=>!d)} title={dm?'Mode clair':'Mode sombre'}>
+                {dm ? '☀️' : '🌙'}
+              </button>
+              <button onClick={()=>setModal('search')}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
+                style={{background:'var(--t1)', color:'var(--bg)'}}>
+                <span className="text-base leading-none">＋</span> Ajouter
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* TOOLBAR */}
+        <div style={{background:'var(--surface)',borderBottom:'1px solid var(--border)'}} className="sticky top-[60px] z-20">
+          {/* Ligne 1 — catégories, états, tri, recherche */}
+          <div className="max-w-7xl mx-auto px-5 py-2.5 flex items-center gap-2 overflow-x-auto">
+            <div className="flex gap-1 rounded-xl p-1 flex-shrink-0" style={{background:'var(--surface2)'}}>
+              {[['all','Tout'], ...Object.entries(CATS).map(([k,v])=>[k,v.icon])].map(([k,lbl]) => (
+                <button key={k} onClick={()=>setFCat(k)}
+                  className="seg-btn px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
+                  style={fCat===k ? {background:'var(--surface)',color:k==='all'?'var(--t1)':CATS[k]?.color,boxShadow:'0 1px 3px rgba(0,0,0,0.15)'} : {color:'var(--t3)'}}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 rounded-xl p-1 flex-shrink-0" style={{background:'var(--surface2)'}}>
+              {[['all','Tous'], ...Object.entries(STATUSES).map(([k,v])=>[k,v.label])].map(([k,lbl]) => (
+                <button key={k} onClick={()=>setFSt(k)}
+                  className="seg-btn px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
+                  style={fSt===k ? {background:'var(--surface)',color:k==='all'?'var(--t1)':STATUSES[k]?.color,boxShadow:'0 1px 3px rgba(0,0,0,0.15)'} : {color:'var(--t3)'}}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1" />
+            {/* Filtre année */}
+            <select value={fYear} onChange={e=>setFYear(e.target.value)}
+              className="flex-shrink-0 rounded-xl px-3 py-2 text-xs font-medium cursor-pointer appearance-none"
+              style={{background:'var(--surface)',border:'1px solid var(--border)',color:fYear!=='all'?'#2563EB':'var(--t1)',fontWeight:fYear!=='all'?'700':'500'}}>
+              <option value="all">Année</option>
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <select value={sort} onChange={e=>setSort(e.target.value)}
+              className="flex-shrink-0 rounded-xl px-3 py-2 text-xs font-medium cursor-pointer appearance-none"
+              style={{background:'var(--surface)',border:'1px solid var(--border)',color:'var(--t1)'}}>
+              <option value="added">Récents</option>
+              <option value="alpha">A → Z</option>
+              <option value="year">Année</option>
+            </select>
+            <div className="relative flex-shrink-0">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style={{color:'var(--t3)'}}>⌕</span>
+              <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Filtrer…"
+                className="rounded-xl pl-7 pr-3 py-2 text-xs w-36 transition-colors"
+                style={{background:'var(--surface)',border:'1px solid var(--border)',color:'var(--t1)'}} />
+            </div>
+          </div>
+
+          {/* Ligne 2 — filtre A→Z */}
+          <div className="max-w-7xl mx-auto px-5 pb-2 flex items-center gap-1 overflow-x-auto">
+            {['all','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'].map(l => {
+              const isAll    = l === 'all';
+              const active   = fLetter === l;
+              const hasItems = isAll || usedLetters.has(l);
+              return (
+                <button key={l} onClick={() => hasItems && setFLetter(l)}
+                  className="flex-shrink-0 w-7 h-7 rounded-lg text-[11px] font-bold transition-all"
+                  style={active
+                    ? {background:'var(--t1)', color:'var(--bg)'}
+                    : hasItems
+                      ? {background:'var(--surface2)', color:'var(--t2)'}
+                      : {background:'transparent', color:'var(--border2)', cursor:'default'}}>
+                  {isAll ? '✕' : l}
+                </button>
+              );
+            })}
+            {(fLetter!=='all' || fYear!=='all') && (
+              <button onClick={()=>{setFLetter('all');setFYear('all');}}
+                className="flex-shrink-0 ml-2 px-3 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                style={{background:'#FEF2F2', color:'#DC2626'}}>
+                Réinitialiser
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* GRID */}
+        <main className="max-w-7xl mx-auto px-5 py-8">
+          {filtered.length===0 ? (
+            <div className="flex flex-col items-center justify-center py-28 gap-3">
+              <div className="text-6xl opacity-20 select-none">{fCat!=='all'?CATS[fCat]?.icon:'📂'}</div>
+              <div className="text-base font-semibold" style={{color:'var(--t3)'}}>Rien à afficher</div>
+              <div className="text-sm opacity-60" style={{color:'var(--t3)'}}>Clique sur ＋ Ajouter pour commencer</div>
+            </div>
+          ) : (
+            <div className="grid gap-4" style={{gridTemplateColumns:'repeat(auto-fill,minmax(148px,1fr))'}}>
+              {filtered.map(item => <Card key={item.id} item={item} onOpen={openDetail} onEdit={handleEdit} onDelete={handleDelete} />)}
+            </div>
+          )}
+        </main>
+
+        {/* MODALS */}
+        <SearchModal open={modal==='search'} initialCat={fCat!=='all'?fCat:'movie'} onClose={()=>setModal(null)} onAddMany={handleAddMany} onManual={openManual} />
+        <AddEditModal open={modal==='add'} item={editItem} defaultCat={manualCat} onClose={()=>{setModal(null);setEditItem(null);}} onSave={handleSave} />
+        <DetailModal open={modal==='detail'} item={detailItem} onClose={()=>{setModal(null);setDetailItem(null);}} onEdit={handleEdit} onUpdate={handleUpdate} />
+
+        <Toast msg={toast.msg} visible={toast.on} />
+      </div>
+    </DarkCtx.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
