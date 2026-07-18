@@ -1783,12 +1783,9 @@ function App() {
     }
   }, "Cat\xE9gorie"), /*#__PURE__*/React.createElement(NavItem, {
     label: "Tout",
-    count: items.length,
+    count: items.filter(i => fSt === 'all' || i.status === fSt).length,
     active: fCat === 'all',
-    onClick: () => {
-      setFCat('all');
-      setFSt('all');
-    },
+    onClick: () => setFCat('all'),
     icon: /*#__PURE__*/React.createElement("div", {
       style: {
         width: '20px',
@@ -1837,12 +1834,9 @@ function App() {
   }), CATS_LIST.map(c => /*#__PURE__*/React.createElement(NavItem, {
     key: c.key,
     label: c.label,
-    count: items.filter(i => i.cat === c.key).length,
+    count: items.filter(i => i.cat === c.key && (fSt === 'all' || i.status === fSt)).length,
     active: fCat === c.key,
-    onClick: () => {
-      setFCat(c.key);
-      setFSt('all');
-    },
+    onClick: () => setFCat(fCat === c.key ? 'all' : c.key),
     icon: /*#__PURE__*/React.createElement("div", {
       style: {
         width: '20px',
@@ -1878,12 +1872,9 @@ function App() {
   }, "\xC9tat"), STATUS_LIST.map(s => /*#__PURE__*/React.createElement(NavItem, {
     key: s.key,
     label: s.label,
-    count: items.filter(i => i.status === s.key).length,
+    count: items.filter(i => i.status === s.key && (fCat === 'all' || i.cat === fCat)).length,
     active: fSt === s.key,
-    onClick: () => {
-      setFSt(s.key);
-      setFCat('all');
-    },
+    onClick: () => setFSt(fSt === s.key ? 'all' : s.key),
     icon: /*#__PURE__*/React.createElement("div", {
       style: {
         width: '7px',

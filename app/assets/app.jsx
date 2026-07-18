@@ -680,11 +680,11 @@ function App() {
             {/* Catégories */}
             <div style={{padding:'6px 10px'}}>
               <div style={{fontSize:'9px',fontWeight:800,textTransform:'uppercase',letterSpacing:'0.14em',color:'var(--t3)',padding:'0 8px',marginBottom:'5px'}}>Catégorie</div>
-              <NavItem label="Tout" count={items.length} active={fCat==='all'} onClick={()=>{setFCat('all');setFSt('all');}}
+              <NavItem label="Tout" count={items.filter(i=>fSt==='all'||i.status===fSt).length} active={fCat==='all'} onClick={()=>setFCat('all')}
                 icon={<div style={{width:'20px',height:'20px',borderRadius:'5px',background:'rgba(255,255,255,0.06)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg viewBox="0 0 16 16" fill="none" stroke="var(--t2)" strokeWidth="1.7" style={{width:'11px',height:'11px'}}><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg></div>}
               />
               {CATS_LIST.map(c=>(
-                <NavItem key={c.key} label={c.label} count={items.filter(i=>i.cat===c.key).length} active={fCat===c.key} onClick={()=>{setFCat(c.key);setFSt('all');}}
+                <NavItem key={c.key} label={c.label} count={items.filter(i=>i.cat===c.key&&(fSt==='all'||i.status===fSt)).length} active={fCat===c.key} onClick={()=>setFCat(fCat===c.key?'all':c.key)}
                   icon={<div style={{width:'20px',height:'20px',borderRadius:'5px',background:`rgba(${c.rgb},0.14)`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{c.icon}</div>}
                 />
               ))}
@@ -696,7 +696,7 @@ function App() {
             <div style={{padding:'6px 10px'}}>
               <div style={{fontSize:'9px',fontWeight:800,textTransform:'uppercase',letterSpacing:'0.14em',color:'var(--t3)',padding:'0 8px',marginBottom:'5px'}}>État</div>
               {STATUS_LIST.map(s=>(
-                <NavItem key={s.key} label={s.label} count={items.filter(i=>i.status===s.key).length} active={fSt===s.key} onClick={()=>{setFSt(s.key);setFCat('all');}}
+                <NavItem key={s.key} label={s.label} count={items.filter(i=>i.status===s.key&&(fCat==='all'||i.cat===fCat)).length} active={fSt===s.key} onClick={()=>setFSt(fSt===s.key?'all':s.key)}
                   icon={<div style={{width:'7px',height:'7px',borderRadius:'50%',background:s.color,flexShrink:0,boxShadow:s.glow?`0 0 6px ${s.color}80`:'none'}} />}
                 />
               ))}
