@@ -550,14 +550,29 @@ function App() {
 
   const stats = useMemo(() => ({ total:items.length, doing:items.filter(i=>i.status==='doing').length, done:items.filter(i=>i.status==='done').length }), [items]);
 
+  /* détection de doublons : même titre (normalisé) dans la même catégorie */
+  const normTitle   = s => (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+  const isDuplicate = (title, cat, excludeId) => items.some(i => i.cat===cat && i.id!==excludeId && normTitle(i.title)===normTitle(title));
+
   const handleAdd     = async item => { await saveNew(item); await refresh(); setModal(null); showToast(`"${item.title}" ajouté !`); };
   const handleAddMany = async its  => {
-    for (const it of its) await saveNew(it);
+    const seen = new Set(items.map(i => i.cat+'|'+normTitle(i.title)));
+    const kept = [];
+    let skipped = 0;
+    for (const it of its) {
+      const key = it.cat+'|'+normTitle(it.title);
+      if (seen.has(key)) { skipped++; continue; }
+      seen.add(key); kept.push(it);
+    }
+    for (const it of kept) await saveNew(it);
     await refresh();
     setModal(null);
-    showToast(its.length===1 ? `"${its[0].title}" ajouté !` : `${its.length} œuvres ajoutées !`);
+    if (kept.length===0) { showToast(its.length===1 ? `"${its[0].title}" est déjà dans ta bibliothèque.` : 'Déjà dans ta bibliothèque, rien à ajouter.'); return; }
+    const base = kept.length===1 ? `"${kept[0].title}" ajouté !` : `${kept.length} œuvres ajoutées !`;
+    showToast(skipped>0 ? `${base} (${skipped} doublon${skipped>1?'s':''} ignoré${skipped>1?'s':''})` : base);
   };
   const handleSave    = async item => {
+    if (isDuplicate(item.title, item.cat, editItem?.id)) { showToast(`"${item.title}" est déjà dans ta bibliothèque.`); return; }
     if (editItem) { await updateItem(item); showToast('Modifié !'); }
     else          { await saveNew(item);    showToast(`"${item.title}" ajouté !`); }
     await refresh(); setModal(null); setEditItem(null);
