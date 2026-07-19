@@ -336,9 +336,10 @@ function Toast({
 }) {
   if (!visible) return null;
   return /*#__PURE__*/React.createElement("div", {
-    className: "toast-in fixed bottom-6 right-6 z-50 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-2xl pointer-events-none",
+    className: "toast-in fixed bottom-6 right-6 z-50 text-sm font-medium px-5 py-3 rounded-2xl shadow-2xl pointer-events-none",
     style: {
-      background: 'var(--t1)'
+      background: 'var(--t1)',
+      color: 'var(--bg)'
     }
   }, msg);
 }
